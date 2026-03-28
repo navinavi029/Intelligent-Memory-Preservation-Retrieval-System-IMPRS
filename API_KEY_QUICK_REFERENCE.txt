@@ -1,0 +1,77 @@
+========================================
+NVIDIA API KEY - QUICK REFERENCE
+========================================
+
+QUESTION: Which API key should I use?
+
+ANSWER: Use your NVIDIA NIM API key for BOTH embedding and LLM!
+
+
+DETAILS:
+--------
+Your application uses NVIDIA NIM API which provides:
+  ✓ Embeddings (nvidia/llama-3.2-nemoretriever-300m-embed-v1)
+  ✓ Chat/LLM (meta/llama-3.1-8b-instruct)
+
+ONE KEY = BOTH SERVICES
+
+
+WHERE TO GET IT:
+----------------
+1. Visit: https://build.nvidia.com/
+2. Sign up or log in
+3. Go to API Keys section
+4. Generate new API key
+5. Copy the key (starts with 'nvapi-')
+
+
+WHAT TO ENTER:
+--------------
+When the setup asks for "NVIDIA API Key":
+→ Enter your NVIDIA NIM API key
+
+This SAME key will be used for:
+  - Document embedding (vectorization)
+  - Chat responses (LLM)
+
+
+IF YOU HAVE TWO KEYS:
+---------------------
+Scenario 1: Two NVIDIA keys
+→ Use either one (they both work for all NVIDIA services)
+
+Scenario 2: One NVIDIA, one OpenAI
+→ Use the NVIDIA key (this app is configured for NVIDIA)
+
+Scenario 3: One for embedding, one for LLM (both NVIDIA)
+→ Use either one (NVIDIA keys work for all their services)
+
+
+KEY FORMAT:
+-----------
+✓ Starts with: nvapi-
+✓ Example: nvapi-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+✓ Length: ~50-60 characters
+
+
+CONFIGURATION:
+--------------
+The key is saved in application-local.properties as:
+
+nvidia.api.key=nvapi-YOUR_KEY_HERE
+spring.ai.openai.api-key=nvapi-YOUR_KEY_HERE
+
+Both lines use the SAME key!
+
+
+SUMMARY:
+--------
+✓ You need: ONE NVIDIA NIM API key
+✓ Get it from: https://build.nvidia.com/
+✓ Use it for: Both embedding AND chat
+✓ Enter it: When prompted during setup
+
+
+Need more details? See: NVIDIA_API_KEY_GUIDE.md
+
+========================================
