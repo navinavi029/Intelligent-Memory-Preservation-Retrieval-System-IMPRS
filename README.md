@@ -58,14 +58,20 @@ Learn the system progressively from basics to advanced:
 3. **[Part 3: Advanced](./demo/docs/03-ADVANCED.md)** - Deep dive into vector search, performance optimization, and scaling
 4. **[Part 4: Reference](./demo/docs/04-REFERENCE.md)** - Quick reference for APIs, configuration, and troubleshooting
 
-### Project Structure
+### Project Structure & Reference
 
-**[Project Structure Guide](./demo/docs/PROJECT_STRUCTURE.md)** - Complete reference explaining every folder and file in the project, including:
-- Directory organization and purpose
-- Java package breakdown (config, controller, service, repository, etc.)
-- Configuration files and their roles
-- Architectural patterns and naming conventions
-- Quick navigation guide for common tasks
+- **[Project Structure Guide](./demo/docs/PROJECT_STRUCTURE.md)** - Complete reference explaining every folder and file in the project, including:
+  - Directory organization and purpose
+  - Java package breakdown (config, controller, service, repository, etc.)
+  - Configuration files and their roles
+  - Architectural patterns and naming conventions
+  - Quick navigation guide for common tasks
+
+- **[Glossary](./demo/docs/GLOSSARY.md)** - Comprehensive reference of technical terms, acronyms, and concepts:
+  - 100+ terms with clear definitions
+  - Project-specific terminology
+  - Common formulas and calculations
+  - Acronym quick reference table
 
 ## ✨ Key Features
 
