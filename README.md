@@ -6,12 +6,13 @@ Production-ready Retrieval-Augmented Generation (RAG) system that transforms PDF
 
 ```bash
 # 1. Setup database
-psql -U postgres -f setup-db.sql
+psql -U postgres -f demo/setup-db.sql
 
 # 2. Configure API key
 export NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
 
 # 3. Run application
+cd demo
 ./mvnw spring-boot:run
 
 # 4. Upload a PDF
@@ -26,17 +27,17 @@ curl -X POST http://localhost:8080/api/chat/query \
 ## 📚 Documentation
 
 ### For New Users
-- **[Zero-to-Hero Learning Path](./docs/ZERO_TO_HERO.md)** - Complete guide from basics to advanced
+- **[Zero-to-Hero Learning Path](./demo/docs/ZERO_TO_HERO.md)** - Complete guide from basics to advanced
 
 ### For Experienced Engineers
-- **[Principal-Level Guide](./docs/PRINCIPAL_GUIDE.md)** - Architecture insights and design decisions
+- **[Principal-Level Guide](./demo/docs/PRINCIPAL_GUIDE.md)** - Architecture insights and design decisions
 
 ### Reference Documentation
-- [Project Overview](./docs/PROJECT_OVERVIEW.md)
-- [API Reference](./docs/API_REFERENCE.md)
-- [Architecture Improvements](./docs/ARCHITECTURE_IMPROVEMENTS.md)
-- [ADR-001: Async Processing](./docs/ADR-001-async-processing-and-resilience.md)
-- [Glossary](./docs/GLOSSARY.md)
+- [Project Overview](./demo/docs/PROJECT_OVERVIEW.md)
+- [API Reference](./demo/docs/API_REFERENCE.md)
+- [Architecture Improvements](./demo/docs/ARCHITECTURE_IMPROVEMENTS.md)
+- [ADR-001: Async Processing](./demo/docs/ADR-001-async-processing-and-resilience.md)
+- [Glossary](./demo/docs/GLOSSARY.md)
 
 ## ✨ Key Features
 
@@ -70,12 +71,12 @@ curl -X POST http://localhost:8080/api/chat/query \
 ```bash
 # Install PostgreSQL and pgvector
 # Then create database
-psql -U postgres -f setup-db.sql
+psql -U postgres -f demo/setup-db.sql
 ```
 
 ### 2. Configuration
 ```properties
-# src/main/resources/application.properties
+# demo/src/main/resources/application.properties
 nvidia.api.key=nvapi-YOUR_KEY_HERE
 spring.datasource.username=postgres
 spring.datasource.password=your_password
@@ -83,6 +84,7 @@ spring.datasource.password=your_password
 
 ### 3. Build and Run
 ```bash
+cd demo
 ./mvnw clean install
 ./mvnw spring-boot:run
 ```
@@ -200,6 +202,7 @@ resilience4j.circuitbreaker.instances.nvidia-api.wait-duration-in-open-state=30s
 ## 🧪 Testing
 
 ```bash
+cd demo
 # Run all tests
 ./mvnw test
 
