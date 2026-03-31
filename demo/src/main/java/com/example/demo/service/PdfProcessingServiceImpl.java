@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.DocumentReader;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -40,12 +41,11 @@ public class PdfProcessingServiceImpl implements PdfProcessingService {
     
     /**
      * Process uploaded PDF file with validation and text extraction.
-     * Creates document record, validates file, extracts text, and updates status.
+     * Creates document record, validates file, then processes asynchronously.
      * 
      * @param file The uploaded PDF file
-     * @return Document entity with processing status
+     * @return Document entity with PENDING status
      * @throws IllegalArgumentException if validation fails
-     * @throws RuntimeException if processing fails
      */
     @Override
     @Transactional
@@ -95,6 +95,24 @@ public class PdfProcessingServiceImpl implements PdfProcessingService {
         log.info("[PdfProcessingService] PDF upload accepted - documentId: {}, filename: {}, size: {} bytes, status: PENDING, timestamp: {}", 
                 document.getId(), file.getOriginalFilename(), file.getSize(), LocalDateTime.now());
         
+        // Process document asynchronously
+        processDocumentAsync(document.getId(), file);
+        
+        return document;
+    }
+    
+    /**
+     * Process document asynchronously in background.
+     * Extracts text, chunks, generates embeddings, and updates status.
+     * 
+     * @param documentId The document ID
+     * @param file The uploaded PDF file
+     */
+    @Async("documentProcessingExecutor")
+    public void processDocumentAsync(Long documentId, MultipartFile file) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
+        
         try {
             // Update status to PROCESSING
             document.setStatus(ProcessingStatus.PROCESSING);
@@ -133,8 +151,6 @@ public class PdfProcessingServiceImpl implements PdfProcessingService {
             log.info("[PdfProcessingService] PDF upload completed successfully - documentId: {}, filename: {}, size: {} bytes, chunkCount: {}, status: COMPLETED, outcome: SUCCESS, timestamp: {}", 
                     document.getId(), file.getOriginalFilename(), file.getSize(), chunksWithEmbeddings.size(), LocalDateTime.now());
             
-            return document;
-            
         } catch (Exception e) {
             // Update status to FAILED with error message (Requirement 1.5, 9.1)
             log.error("[PdfProcessingService] PDF processing failed - documentId: {}, filename: {}, component: PdfProcessingService, outcome: FAILED, timestamp: {}, error: {}", 
@@ -142,8 +158,6 @@ public class PdfProcessingServiceImpl implements PdfProcessingService {
             document.setStatus(ProcessingStatus.FAILED);
             document.setErrorMessage(e.getMessage());
             documentRepository.save(document);
-            
-            throw new RuntimeException("Failed to process PDF document: " + e.getMessage(), e);
         }
     }
     

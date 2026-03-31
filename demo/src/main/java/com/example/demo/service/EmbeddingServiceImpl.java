@@ -4,6 +4,7 @@ import com.example.demo.config.AppConfig;
 import com.example.demo.model.DocumentChunk;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -59,6 +60,7 @@ public class EmbeddingServiceImpl implements EmbeddingService {
     }
     
     @Override
+    @Cacheable(value = "queryEmbeddings", key = "#query")
     public float[] generateQueryEmbedding(String query) {
         String queryPreview = query.length() > 50 ? query.substring(0, 50) + "..." : query;
         log.debug("[EmbeddingService] Generating query embedding - queryLength: {}, queryPreview: '{}', timestamp: {}", 

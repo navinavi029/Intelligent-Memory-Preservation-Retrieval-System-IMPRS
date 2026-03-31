@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,7 +24,7 @@ public class ChatServiceImpl implements ChatService {
     
     private final EmbeddingService embeddingService;
     private final RetrievalService retrievalService;
-    private final NvidiaChatClient nvidiaChatClient;
+    private final ResilientNvidiaChatClient resilientNvidiaChatClient;
     private final AppConfig appConfig;
     
     private static final String SYSTEM_PROMPT_TEMPLATE = """
@@ -169,83 +168,20 @@ public class ChatServiceImpl implements ChatService {
     
     /**
      * Generate response from NVIDIA LLM API with retry logic.
-     * Implements 1 retry as per requirements.
-     * Logs API rate limit warnings (Requirement 9.3).
+     * Now uses resilient client with circuit breaker protection.
      * 
      * @param context Context window from retrieved chunks
      * @param query User's sanitized query
      * @return Generated answer
-     * @throws RuntimeException if API call fails after retry
      */
     private String generateResponseWithRetry(String context, String query) {
-        int maxAttempts = 2; // Initial attempt + 1 retry
-        Exception lastException = null;
-        
-        log.debug("[ChatService] Starting NVIDIA LLM API call with retry - maxAttempts: {}", maxAttempts);
-        
-        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-                log.trace("[ChatService] NVIDIA LLM API call attempt - attempt: {}/{}", attempt, maxAttempts);
-                String response = generateResponse(context, query);
-                
-                if (attempt > 1) {
-                    log.info("[ChatService] NVIDIA LLM API call succeeded after retry - successfulAttempt: {}/{}, timestamp: {}", 
-                            attempt, maxAttempts, java.time.LocalDateTime.now());
-                }
-                
-                return response;
-            } catch (Exception e) {
-                lastException = e;
-                
-                // Check if this is a rate limit error (Requirement 9.3)
-                boolean isRateLimitError = e.getMessage() != null && 
-                    (e.getMessage().contains("rate limit") || 
-                     e.getMessage().contains("429") ||
-                     e.getMessage().contains("quota"));
-                
-                if (attempt < maxAttempts) {
-                    if (isRateLimitError) {
-                        log.warn("[ChatService] API rate limit exceeded - component: ChatService, attempt: {}/{}, timestamp: {}, error: {}", 
-                                attempt, maxAttempts, java.time.LocalDateTime.now(), e.getMessage());
-                    } else {
-                        log.warn("[ChatService] NVIDIA LLM API call failed - component: ChatService, attempt: {}/{}, timestamp: {}, error: {}", 
-                                attempt, maxAttempts, java.time.LocalDateTime.now(), e.getMessage());
-                    }
-                } else {
-                    log.error("[ChatService] NVIDIA LLM API call failed after all retries - component: ChatService, totalAttempts: {}, timestamp: {}, error: {}", 
-                            maxAttempts, java.time.LocalDateTime.now(), e.getMessage(), e);
-                }
-            }
-        }
-        
-        throw new RuntimeException(
-            "Failed to generate response from NVIDIA LLM API after " + maxAttempts + " attempts",
-            lastException
-        );
-    }
-    
-    /**
-     * Generate response from NVIDIA LLM API.
-     * 
-     * @param context Context window
-     * @param query User query
-     * @return Generated answer
-     */
-    private String generateResponse(String context, String query) {
-        log.trace("[ChatService] Building system prompt - contextLength: {}, queryLength: {}", 
-                 context.length(), query.length());
+        log.debug("[ChatService] Calling resilient NVIDIA LLM API");
         
         // Build system prompt with context
         String systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace("{context}", context);
         
-        log.trace("[ChatService] Calling NVIDIA chat client");
-        
-        // Call custom NVIDIA chat client
-        String response = nvidiaChatClient.generateResponse(systemPrompt, query);
-        
-        log.debug("[ChatService] NVIDIA LLM response received - responseLength: {} chars", response.length());
-        
-        return response;
+        // Call resilient client (circuit breaker, retry, rate limiter applied)
+        return resilientNvidiaChatClient.generateResponse(systemPrompt, query);
     }
     
     /**
