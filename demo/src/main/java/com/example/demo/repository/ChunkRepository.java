@@ -38,6 +38,10 @@ public interface ChunkRepository extends JpaRepository<DocumentChunk, Long> {
      * Returns the top-k most similar chunks with similarity scores above the threshold.
      * Includes document metadata (filename) via JOIN.
      * 
+     * Optimized query with:
+     * - Threshold filter applied before sorting for faster execution
+     * - Minimal column selection to reduce data transfer
+     * 
      * The similarity score is calculated as (1 - cosine_distance), where:
      * - 1.0 means identical vectors
      * - 0.0 means orthogonal vectors
@@ -49,7 +53,7 @@ public interface ChunkRepository extends JpaRepository<DocumentChunk, Long> {
      */
     @Query(value = """
         SELECT c.id, c.document_id, c.chunk_number, c.content, c.token_count, 
-               c.embedding, c.created_at, d.filename,
+               NULL as embedding, c.created_at, d.filename,
                (1 - (c.embedding <=> CAST(:queryEmbedding AS vector))) AS similarity_score
         FROM document_chunks c
         INNER JOIN documents d ON c.document_id = d.id

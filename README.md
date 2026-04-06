@@ -25,39 +25,17 @@ Enterprise-grade AI-powered platform utilizing advanced RAG architecture, pgvect
 
 ## Quick Start
 
-### Prerequisites
+Run these commands in order:
 
-- Docker Desktop (running)
-- Java 17+
-- Maven (included via mvnw)
-- NVIDIA API Key (get from https://build.nvidia.com)
+```bash
+1_CHECK_PREREQUISITES.bat    # Check system requirements
+2_CONFIGURE_API_KEY.bat      # Set up NVIDIA API key
+3_START_APPLICATION.bat      # Start database and application
+4_OPEN_SWAGGER_UI.bat        # Open API documentation
+5_OPTIMIZE_DATABASE.bat      # Optimize for faster queries
+```
 
-### Setup Steps
-
-1. **Check Prerequisites**
-   ```bash
-   1_CHECK_PREREQUISITES.bat
-   ```
-
-2. **Configure API Key**
-   ```bash
-   2_CONFIGURE_API_KEY.bat
-   ```
-   Enter your NVIDIA API key when prompted.
-
-3. **Start Application**
-   ```bash
-   3_START_APPLICATION.bat
-   ```
-   This will:
-   - Start or reuse existing PostgreSQL container
-   - Initialize database schema if needed
-   - Start the Spring Boot application
-
-4. **Access Swagger UI**
-   ```
-   http://localhost:8080/swagger-ui/index.html
-   ```
+For detailed setup instructions, see [SETUP.md](SETUP.md)
 
 ### Stopping
 
@@ -181,16 +159,13 @@ app.chunking.overlap=100       # Overlap between chunks
 │   │       ├── repository/       # Data repositories
 │   │       └── service/          # Business logic
 │   ├── src/main/resources/       # Configuration files
-│   │   ├── application.properties
-│   │   └── schema.sql
 │   └── pom.xml                   # Maven dependencies
 ├── docker-compose.yml            # Docker configuration
-├── 1_CHECK_PREREQUISITES.bat     # Check system requirements
-├── 2_CONFIGURE_API_KEY.bat       # Configure NVIDIA API key
-├── 3_START_APPLICATION.bat       # Start everything
-├── 4_OPEN_SWAGGER_UI.bat         # Open Swagger UI
-├── STOP_DOCKER_DB.bat            # Stop database
-└── README.md                     # This file
+├── *.bat                         # Setup and utility scripts
+├── *.ps1                         # PowerShell test scripts
+├── README.md                     # This file
+├── SETUP.md                      # Detailed setup guide
+└── TESTING.md                    # Testing guide
 ```
 
 ## Technical Details
@@ -211,22 +186,16 @@ On every startup, the script checks if the database schema exists and initialize
 
 ## Development
 
-### Run Tests
-```bash
-cd demo
-mvnw test
-```
-
 ### Build
 ```bash
 cd demo
 mvnw clean package
 ```
 
-### Run with Profile
+### Run Tests
 ```bash
 cd demo
-mvnw spring-boot:run -Dspring-boot.run.profiles=local
+mvnw test
 ```
 
 ## Troubleshooting

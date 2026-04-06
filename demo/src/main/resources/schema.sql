@@ -34,10 +34,12 @@ CREATE TABLE IF NOT EXISTS document_chunks (
 
 -- HNSW index for efficient vector similarity search using cosine distance
 -- HNSW provides excellent performance for high-dimensional vectors
--- m parameter controls the number of connections (16 is a good default)
--- ef_construction controls index build quality (64 is a good default)
+-- Optimized parameters for faster search:
+-- m=32: More connections for better recall and speed (default 16)
+-- ef_construction=128: Higher quality index (default 64)
+-- Note: For even faster queries at runtime, set ef_search parameter
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON document_chunks 
-USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
 
 -- Index for filtering documents by processing status
 CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);

@@ -45,11 +45,15 @@ public class ChatServiceImpl implements ChatService {
             - Ask thoughtful follow-up questions when relevant
             - Acknowledge the emotional significance of shared memories
             - Use natural, flowing language that feels personal and caring
+            - Keep responses concise (2-4 sentences maximum)
+            - Do NOT show your reasoning or thinking process
+            - Respond directly to the user with your final answer only
             
             Related memories that may help with your response:
             {context}
             
             Remember: Your role is to be a compassionate companion who helps preserve and celebrate the user's life experiences.
+            Respond directly and concisely without showing your reasoning.
             """;
     
     private static final String NO_CONTEXT_RESPONSE = 
@@ -93,10 +97,10 @@ public class ChatServiceImpl implements ChatService {
                     .build();
             }
             
-            // Step 3: Retrieve relevant chunks with enhanced parameters
-            // Optimized for maximum recall - always return something relevant
-            int topK = 20; // Retrieve even more candidates to increase chances of finding relevant content
-            double threshold = 0.0; // No threshold - return all results sorted by similarity
+            // Step 3: Retrieve relevant chunks with optimized parameters
+            // Balanced for speed and quality - use config values
+            int topK = appConfig.getRetrieval().getTopK();
+            double threshold = appConfig.getRetrieval().getSimilarityThreshold();
             log.debug("[ChatService] Retrieving similar chunks - topK: {}, threshold: {}", topK, threshold);
             
             List<RetrievedChunk> retrievedChunks;
@@ -121,12 +125,12 @@ public class ChatServiceImpl implements ChatService {
                 }
             }
             
-            // Step 4: Apply diversity filtering if enabled
-            // Enable diversity filtering to show varied memories while maintaining high recall
-            if (retrievedChunks.size() > 1) {
-                retrievedChunks = applyDiversityFiltering(retrievedChunks);
-                log.debug("[ChatService] Applied diversity filtering - finalCount: {}", retrievedChunks.size());
-            }
+            // Step 4: Apply diversity filtering if enabled (skip for speed)
+            // Diversity filtering disabled for faster responses
+            // if (retrievedChunks.size() > 1) {
+            //     retrievedChunks = applyDiversityFiltering(retrievedChunks);
+            //     log.debug("[ChatService] Applied diversity filtering - finalCount: {}", retrievedChunks.size());
+            // }
             
             log.info("[ChatService] Retrieved chunks - count: {}", retrievedChunks.size());
             
@@ -150,7 +154,11 @@ public class ChatServiceImpl implements ChatService {
             log.debug("[ChatService] Generating response from NVIDIA LLM API");
             String answer;
             try {
-                answer = generateResponseWithRetry(contextWindow, sanitizedQuery);
+                String rawAnswer = generateResponseWithRetry(contextWindow, sanitizedQuery);
+                
+                // Clean up response - remove any reasoning artifacts
+                answer = cleanResponse(rawAnswer);
+                
                 log.debug("[ChatService] Response generated - answerLength: {} chars", answer.length());
             } catch (Exception e) {
                 log.error("[ChatService] Failed to generate response from NVIDIA API - error: {}", e.getMessage(), e);
@@ -260,6 +268,105 @@ public class ChatServiceImpl implements ChatService {
         
         // Call resilient client (circuit breaker, retry, rate limiter applied)
         return resilientNvidiaChatClient.generateResponse(systemPrompt, query);
+    }
+    
+    /**
+     * Clean response to remove any reasoning artifacts or verbose output.
+     * Some models may include their thinking process - we only want the final answer.
+     * 
+     * @param rawResponse Raw response from LLM
+     * @return Cleaned response
+     */
+    private String cleanResponse(String rawResponse) {
+        if (rawResponse == null || rawResponse.trim().isEmpty()) {
+            return rawResponse;
+        }
+        
+        String cleaned = rawResponse.trim();
+        
+        // Remove common reasoning patterns
+        // Pattern 1: "Okay, the user is asking..." or similar meta-commentary
+        if (cleaned.toLowerCase().startsWith("okay,") || 
+            cleaned.toLowerCase().startsWith("let me") ||
+            cleaned.toLowerCase().startsWith("i need to") ||
+            cleaned.toLowerCase().startsWith("looking at")) {
+            
+            // Find the actual response after the reasoning
+            // Look for patterns like "The response should be:" or similar
+            String[] markers = {
+                "The response should be:",
+                "I should respond:",
+                "My response:",
+                "Response:",
+                "Answer:",
+                "I'll respond:",
+                "I can say:",
+                "I would say:"
+            };
+            
+            for (String marker : markers) {
+                int markerIndex = cleaned.indexOf(marker);
+                if (markerIndex >= 0) {
+                    cleaned = cleaned.substring(markerIndex + marker.length()).trim();
+                    // Remove quotes if present
+                    if (cleaned.startsWith("\"") && cleaned.endsWith("\"")) {
+                        cleaned = cleaned.substring(1, cleaned.length() - 1).trim();
+                    }
+                    break;
+                }
+            }
+        }
+        
+        // If response is still very long (> 500 chars) and contains reasoning markers, truncate
+        if (cleaned.length() > 500) {
+            // Check for reasoning patterns
+            String lowerCleaned = cleaned.toLowerCase();
+            if (lowerCleaned.contains("i need to check") || 
+                lowerCleaned.contains("looking at the") ||
+                lowerCleaned.contains("the user is asking") ||
+                lowerCleaned.contains("according to the") ||
+                lowerCleaned.contains("the memory provided")) {
+                
+                // This looks like reasoning - try to extract just the conversational part
+                // Look for the first sentence that sounds conversational
+                String[] sentences = cleaned.split("\\. ");
+                for (String sentence : sentences) {
+                    String lower = sentence.toLowerCase().trim();
+                    // Skip reasoning sentences
+                    if (!lower.startsWith("okay") && 
+                        !lower.startsWith("let me") &&
+                        !lower.startsWith("i need") &&
+                        !lower.startsWith("looking at") &&
+                        !lower.startsWith("the user") &&
+                        !lower.startsWith("according to") &&
+                        !lower.contains("the memory") &&
+                        !lower.contains("the provided") &&
+                        sentence.length() > 20) {
+                        // This looks like a real response
+                        cleaned = sentence.trim();
+                        if (!cleaned.endsWith(".") && !cleaned.endsWith("!") && !cleaned.endsWith("?")) {
+                            cleaned += ".";
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Final safety: if still too long (> 800 chars), truncate at sentence boundary
+        if (cleaned.length() > 800) {
+            int lastPeriod = cleaned.lastIndexOf(".", 800);
+            if (lastPeriod > 200) {
+                cleaned = cleaned.substring(0, lastPeriod + 1);
+            } else {
+                cleaned = cleaned.substring(0, 800) + "...";
+            }
+        }
+        
+        log.debug("[ChatService] Response cleaned - originalLength: {}, cleanedLength: {}", 
+                 rawResponse.length(), cleaned.length());
+        
+        return cleaned;
     }
     
     /**

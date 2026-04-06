@@ -84,13 +84,18 @@ public class RetrievalServiceImpl implements RetrievalService {
     /**
      * Convert float array embedding to PostgreSQL vector format string.
      * Format: "[0.1,0.2,0.3,...]"
+     * Optimized with StringBuilder pre-sizing for better performance.
      * 
      * @param embedding The embedding vector
      * @return String representation in PostgreSQL vector format
      */
     private String convertEmbeddingToString(float[] embedding) {
         log.trace("[RetrievalService] Converting embedding array to string - dimensions: {}", embedding.length);
-        StringBuilder sb = new StringBuilder("[");
+        
+        // Pre-size StringBuilder to avoid resizing (estimate: 8 chars per float + commas + brackets)
+        StringBuilder sb = new StringBuilder(embedding.length * 8 + 2);
+        sb.append("[");
+        
         for (int i = 0; i < embedding.length; i++) {
             if (i > 0) {
                 sb.append(",");
@@ -98,6 +103,7 @@ public class RetrievalServiceImpl implements RetrievalService {
             sb.append(embedding[i]);
         }
         sb.append("]");
+        
         return sb.toString();
     }
     
