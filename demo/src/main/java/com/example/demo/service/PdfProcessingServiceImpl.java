@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.TextDocumentRequest;
 import com.example.demo.model.Document;
 import com.example.demo.model.DocumentChunk;
 import com.example.demo.model.ProcessingStatus;
@@ -161,6 +162,80 @@ public class PdfProcessingServiceImpl implements PdfProcessingService {
         }
     }
     
+    /**
+     * Process text document directly (for diary entries).
+     * Creates document record and processes synchronously since text is already available.
+     * 
+     * @param request The text document request
+     * @return Document entity with COMPLETED status
+     * @throws IllegalArgumentException if text validation fails
+     */
+    @Override
+    @Transactional
+    public Document processTextDocument(TextDocumentRequest request) {
+        String memory = request.getMemory();
+        log.info("[PdfProcessingService] Memory sharing - length: {} characters, timestamp: {}", 
+                memory.length(), LocalDateTime.now());
+        
+        // Create document record with memory as filename (truncated for display)
+        String displayName = memory.length() > 50 ? memory.substring(0, 47) + "..." : memory;
+        
+        Document document = Document.builder()
+                .filename(displayName)
+                .originalFilename(memory) // Store full memory in originalFilename
+                .fileSize((long) memory.getBytes().length)
+                .uploadTimestamp(LocalDateTime.now())
+                .status(ProcessingStatus.PROCESSING)
+                .build();
+        
+        document = documentRepository.save(document);
+        log.info("[PdfProcessingService] Text entry accepted - documentId: {}, preview: '{}', status: PROCESSING, timestamp: {}", 
+                document.getId(), displayName, LocalDateTime.now());
+        
+        try {
+            // Process text directly (no chunking needed for single sentences)
+            log.info("[PdfProcessingService] Starting text processing - documentId: {}, timestamp: {}", 
+                    document.getId(), LocalDateTime.now());
+            
+            // Create single chunk for the entire memory
+            DocumentChunk chunk = DocumentChunk.builder()
+                    .document(document)
+                    .chunkNumber(0)
+                    .content(memory)
+                    .tokenCount(memory.split("\\s+").length) // Simple word count approximation
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            
+            // Generate embedding for the chunk
+            log.info("[PdfProcessingService] Starting embedding generation - documentId: {}, timestamp: {}", 
+                    document.getId(), LocalDateTime.now());
+            List<DocumentChunk> chunksWithEmbeddings = embeddingService.generateEmbeddings(List.of(chunk));
+            log.info("[PdfProcessingService] Embedding generation completed - documentId: {}, timestamp: {}", 
+                    document.getId(), LocalDateTime.now());
+            
+            // Save chunk with embedding
+            chunkRepository.saveAll(chunksWithEmbeddings);
+            
+            // Update document status to COMPLETED
+            document.setChunkCount(1);
+            document.setStatus(ProcessingStatus.COMPLETED);
+            document = documentRepository.save(document);
+            
+            log.info("[PdfProcessingService] Text entry completed successfully - documentId: {}, preview: '{}', status: COMPLETED, outcome: SUCCESS, timestamp: {}", 
+                    document.getId(), displayName, LocalDateTime.now());
+            
+            return document;
+            
+        } catch (Exception e) {
+            log.error("[PdfProcessingService] Text processing failed - documentId: {}, preview: '{}', component: PdfProcessingService, outcome: FAILED, timestamp: {}, error: {}", 
+                     document.getId(), displayName, LocalDateTime.now(), e.getMessage(), e);
+            document.setStatus(ProcessingStatus.FAILED);
+            document.setErrorMessage(e.getMessage());
+            documentRepository.save(document);
+            throw new RuntimeException("Failed to process text entry: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Extract text content from PDF using Spring AI PagePdfDocumentReader.
      * 

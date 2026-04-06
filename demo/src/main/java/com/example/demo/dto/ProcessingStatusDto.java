@@ -5,39 +5,53 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 /**
- * DTO for document processing status endpoint.
- * Provides current status and any error messages if processing failed.
+ * Status information for how I'm doing with your shared memory.
+ * Shows current status and any messages if I had trouble keeping it safe.
  * 
  * Validates Requirements 8.4
  */
 @Data
 @Builder
-@Schema(description = "Processing status information for a document")
+@Schema(description = "Status information for how I'm doing with your shared memory")
 public class ProcessingStatusDto {
     
     @Schema(
-        description = "Unique identifier for the document",
+        description = "Unique identifier for this memory",
         example = "123"
     )
     private Long documentId;
     
     @Schema(
-        description = "Current processing status",
+        description = "Preview or title of your memory",
+        example = "Had a wonderful visit with my grandchildren today..."
+    )
+    private String filename;
+    
+    @Schema(
+        description = "How I'm doing with keeping your memory safe",
         example = "COMPLETED"
     )
     private ProcessingStatus status;
     
     @Schema(
-        description = "Number of chunks successfully processed",
+        description = "How many pieces I organized your memory into",
         example = "42"
     )
-    private Integer chunksProcessed;
+    private Integer chunkCount;
     
     @Schema(
-        description = "Error message if processing failed, null otherwise",
+        description = "Any message if I had trouble with your memory, otherwise empty",
         example = "null",
         nullable = true
     )
     private String errorMessage;
+    
+    @Schema(
+        description = "When you shared this memory with me",
+        example = "2024-01-15T10:30:00"
+    )
+    private LocalDateTime uploadTimestamp;
 }

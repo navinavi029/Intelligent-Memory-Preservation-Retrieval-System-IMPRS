@@ -17,6 +17,7 @@ public class AppConfig {
     private RetrievalConfig retrieval = new RetrievalConfig();
     private EmbeddingConfig embedding = new EmbeddingConfig();
     private RetryConfig retry = new RetryConfig();
+    private ResponseConfig response = new ResponseConfig();
     
     /**
      * Configuration for document chunking behavior.
@@ -24,14 +25,14 @@ public class AppConfig {
     @Data
     public static class ChunkingConfig {
         /**
-         * Number of tokens per chunk (default: 500)
+         * Number of tokens per chunk (optimized: 800)
          */
-        private int chunkSize = 500;
+        private int chunkSize = 800;
         
         /**
-         * Number of overlapping tokens between chunks (default: 50)
+         * Number of overlapping tokens between chunks (optimized: 100)
          */
-        private int overlap = 50;
+        private int overlap = 100;
     }
     
     /**
@@ -40,14 +41,24 @@ public class AppConfig {
     @Data
     public static class RetrievalConfig {
         /**
-         * Number of top similar chunks to retrieve (default: 5)
+         * Number of top similar chunks to retrieve (optimized: 8)
          */
-        private int topK = 5;
+        private int topK = 8;
         
         /**
-         * Minimum similarity threshold for chunk retrieval (default: 0.7)
+         * Minimum similarity threshold for chunk retrieval (optimized: 0.25)
          */
-        private double similarityThreshold = 0.7;
+        private double similarityThreshold = 0.25;
+        
+        /**
+         * Enable reranking of retrieved chunks (default: true)
+         */
+        private boolean rerankEnabled = true;
+        
+        /**
+         * Diversity threshold to avoid similar chunks (default: 0.7)
+         */
+        private double diversityThreshold = 0.7;
     }
     
     /**
@@ -80,5 +91,26 @@ public class AppConfig {
          * Multiplier for exponential backoff (default: 2.0)
          */
         private double multiplier = 2.0;
+    }
+    
+    /**
+     * Configuration for response quality and optimization.
+     */
+    @Data
+    public static class ResponseConfig {
+        /**
+         * Maximum context length for LLM input (default: 4000)
+         */
+        private int maxContextLength = 4000;
+        
+        /**
+         * Enable context compression to fit more relevant information (default: true)
+         */
+        private boolean contextCompression = true;
+        
+        /**
+         * Citation style for source references (default: detailed)
+         */
+        private String citationStyle = "detailed";
     }
 }

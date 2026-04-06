@@ -2,11 +2,25 @@
 .kiro/
 .claude/
 .vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
 
 # OS Files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Temporary files
 *.log
 *.tmp
+*.temp
+*.cache
+*.swp
+*.bak
+
+# Environment and secrets
+.env
+*.env
+**/application-local.properties

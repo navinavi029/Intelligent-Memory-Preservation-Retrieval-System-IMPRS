@@ -42,8 +42,8 @@ public class SecurityConfig {
                     .headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/api/**", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                .anyRequest().permitAll() // Allow all for testing
             );
         
         return http.build();

@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Configuration;
  * Properties used:
  * - spring.ai.openai.api-key: NVIDIA API key for authentication
  * - spring.ai.openai.base-url: https://integrate.api.nvidia.com/v1
- * - spring.ai.openai.chat.options.model: meta/llama-3.1-8b-instruct
- * - spring.ai.openai.chat.options.max-tokens: 500
+ * - spring.ai.openai.chat.options.model: nvidia/nemotron-3-super-120b-a12b
+ * - spring.ai.openai.chat.options.max-tokens: 1024
  * - spring.ai.openai.embedding.options.model: nvidia/llama-3.2-nemoretriever-300m-embed-v1
  */
 @Configuration

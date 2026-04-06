@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.TextDocumentRequest;
 import com.example.demo.model.Document;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,6 +27,16 @@ public interface PdfProcessingService {
      * @throws RuntimeException if text extraction fails
      */
     Document processDocument(MultipartFile file);
+    
+    /**
+     * Process text content directly (for diary entries).
+     * 
+     * @param request The text document request
+     * @return Document entity with metadata and processing status
+     * @throws IllegalArgumentException if text validation fails
+     * @throws RuntimeException if processing fails
+     */
+    Document processTextDocument(TextDocumentRequest request);
     
     /**
      * Extract text content from a PDF file using Spring AI PDF document reader.

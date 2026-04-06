@@ -19,8 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * REST controller for handling chat query requests.
- * Provides endpoint for querying uploaded PDF documents using natural language.
+ * Your caring memory companion for exploring shared memories and stories.
+ * Ask me anything about your memories and I'll help you recall the moments that matter most!
  * 
  * Validates Requirements 6.1, 12.2, 12.3
  */
@@ -28,38 +28,37 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Chat", description = "Endpoints for querying uploaded PDF documents using natural language")
+@Tag(name = "Memory Chat", description = "Your caring memory companion - ask me anything about your shared memories and stories!")
 public class ChatController {
     
     private final ChatService chatService;
     
     /**
-     * Process a chat query against uploaded documents.
-     * Validates request using Bean Validation and returns answer with source references.
+     * Chat with me about your memories!
+     * Just ask me a question and I'll search through all your shared memories to help you remember.
      * 
-     * @param request The chat request containing the user query
-     * @return ChatResponse with answer and sources
+     * @param request Your question about your memories
+     * @return A caring response to help you recall what matters most
      */
     @PostMapping("/query")
     @Operation(
-        summary = "Query uploaded documents",
-        description = "Process a natural language question against uploaded PDF documents. " +
-                     "The system retrieves relevant document chunks using semantic search and " +
-                     "generates an answer using Google Gemini API. Returns the answer along with " +
-                     "source references indicating which document chunks were used."
+        summary = "Chat with your memories",
+        description = "Ask me anything about the memories you've shared! I'll search through " +
+                     "them and give you a caring answer to help you remember. Think of it like " +
+                     "having a conversation with someone who treasures all your precious moments."
     )
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200",
-            description = "Query processed successfully",
+            description = "Found some great info for you!",
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = ChatResponse.class),
                 examples = @ExampleObject(
-                    name = "Successful query response",
+                    name = "Helpful response",
                     value = """
                         {
-                          "answer": "The document discusses three main topics: machine learning fundamentals, neural network architectures, and practical applications in computer vision.",
+                          "answer": "Hey! I found some really interesting stuff in your research paper. It covers three main areas: machine learning fundamentals (which is super foundational), neural network architectures (the technical stuff), and practical applications in computer vision. Pretty comprehensive coverage!",
                           "sources": [
                             {
                               "documentId": 123,
@@ -82,20 +81,20 @@ public class ChatController {
         ),
         @ApiResponse(
             responseCode = "400",
-            description = "Invalid request - query is empty or exceeds maximum length",
+            description = "Oops, I need a bit more to work with",
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(
-                    name = "Validation error",
+                    name = "Need more info",
                     value = """
                         {
                           "timestamp": "2024-01-15T10:30:00",
                           "status": 400,
                           "error": "Bad Request",
-                          "message": "Validation failed",
+                          "message": "I need something to search for",
                           "path": "/api/chat/query",
-                          "details": ["Query cannot be empty"]
+                          "details": ["Could you ask me a question? I'm ready to help!"]
                         }
                         """
                 )
@@ -103,15 +102,15 @@ public class ChatController {
         ),
         @ApiResponse(
             responseCode = "500",
-            description = "Internal server error - failed to process query or communicate with Gemini API",
+            description = "Something went wrong on my end",
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = ChatResponse.class),
                 examples = @ExampleObject(
-                    name = "Processing error",
+                    name = "Technical hiccup",
                     value = """
                         {
-                          "answer": "An error occurred while processing your query. Please try again.",
+                          "answer": "Hmm, I'm having some trouble right now. Mind trying that again? Sometimes these things just need a second attempt.",
                           "sources": [],
                           "retrievedChunks": 0
                         }
@@ -121,7 +120,7 @@ public class ChatController {
         )
     })
     public ResponseEntity<ChatResponse> query(@Valid @RequestBody ChatRequest request) {
-        log.info("Received chat query: {}", 
+        log.info("Someone's asking about: {}", 
                 request.getQuery().length() > 100 
                     ? request.getQuery().substring(0, 100) + "..." 
                     : request.getQuery());
@@ -129,17 +128,17 @@ public class ChatController {
         try {
             ChatResponse response = chatService.processQuery(request.getQuery());
             
-            log.info("Successfully processed query, returned {} sources", 
+            log.info("Found some good stuff! Sharing {} sources with them", 
                     response.getSources().size());
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            log.error("Failed to process chat query: {}", e.getMessage(), e);
+            log.error("Oops, hit a snag while helping out: {}", e.getMessage(), e);
             
-            // Return error response with appropriate status
+            // Return a friendly error response
             ChatResponse errorResponse = ChatResponse.builder()
-                    .answer("An error occurred while processing your query. Please try again.")
+                    .answer("Hmm, I'm having some trouble right now. Mind trying that again? Sometimes these things just need a second attempt.")
                     .sources(java.util.List.of())
                     .retrievedChunks(0)
                     .build();

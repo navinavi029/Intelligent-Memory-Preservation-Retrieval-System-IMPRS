@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.example</groupId>
-	<artifactId>demo</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<artifactId>intelligent-memory-preservation-system</artifactId>
+	<version>1.0.0</version>
+	<name>Intelligent Memory Preservation and Retrieval System</name>
+	<description>Enterprise-grade AI-powered memory preservation platform leveraging RAG architecture, vector embeddings, and semantic search to support Alzheimer's and dementia patients in preserving and recalling personal memories</description>
 	<url/>
 	<licenses>
 		<license/>
@@ -133,11 +133,7 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<scope>test</scope>
-		</dependency>
+
 	</dependencies>
 	<dependencyManagement>
 		<dependencies>

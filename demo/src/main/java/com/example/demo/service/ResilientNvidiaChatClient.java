@@ -44,9 +44,15 @@ public class ResilientNvidiaChatClient {
      * @param throwable The exception that triggered fallback
      * @return Fallback response
      */
-    private String fallbackResponse(String systemPrompt, String userQuery, Throwable throwable) {
-        log.warn("[ResilientNvidiaChatClient] Circuit breaker fallback triggered - error: {}", 
-                throwable.getMessage());
+    public String fallbackResponse(String systemPrompt, String userQuery, Throwable throwable) {
+        log.warn("[ResilientNvidiaChatClient] Circuit breaker fallback triggered - error: {}, userQuery: '{}'", 
+                throwable.getMessage(), userQuery.length() > 50 ? userQuery.substring(0, 50) + "..." : userQuery);
+        
+        // Log more details for debugging
+        if (throwable.getCause() != null) {
+            log.debug("[ResilientNvidiaChatClient] Root cause: {}", throwable.getCause().getMessage());
+        }
+        
         return FALLBACK_RESPONSE;
     }
 }

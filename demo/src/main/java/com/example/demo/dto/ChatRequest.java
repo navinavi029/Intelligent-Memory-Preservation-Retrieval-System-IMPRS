@@ -10,14 +10,14 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Request payload for chat queries against uploaded PDF documents")
+@Schema(description = "Request for asking questions about your shared memories and personal stories")
 public class ChatRequest {
     
-    @NotBlank(message = "Query cannot be empty")
-    @Size(max = 1000, message = "Query cannot exceed 1000 characters")
+    @NotBlank(message = "Please share what you'd like to remember")
+    @Size(max = 1000, message = "Let's keep your question under 1000 characters")
     @Schema(
-        description = "Natural language question to ask about the uploaded documents",
-        example = "What are the main topics discussed in the document?",
+        description = "Your question about memories you've shared with me",
+        example = "Tell me about the family gathering we talked about",
         requiredMode = Schema.RequiredMode.REQUIRED,
         maxLength = 1000
     )

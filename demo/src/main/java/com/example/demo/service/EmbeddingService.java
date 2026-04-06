@@ -24,6 +24,15 @@ public interface EmbeddingService {
     List<DocumentChunk> generateEmbeddings(List<DocumentChunk> chunks);
     
     /**
+     * Generate embeddings for text chunks.
+     * 
+     * @param textChunks List of text chunks
+     * @return List of embedding vectors
+     * @throws RuntimeException if all retry attempts fail
+     */
+    List<float[]> generateTextEmbeddings(List<String> textChunks);
+    
+    /**
      * Generate embedding for a single query string.
      * Used for semantic search to find similar document chunks.
      * 

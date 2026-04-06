@@ -30,49 +30,83 @@ public class NvidiaEmbeddingClient {
     @Value("${nvidia.api.base-url:https://integrate.api.nvidia.com/v1}")
     private String baseUrl;
     
-    @Value("${nvidia.api.embedding-model:nvidia/llama-3.2-nemoretriever-300m-embed-v1}")
+    @Value("${nvidia.api.embedding-model:nvidia/nv-embed-v1}")
     private String model;
     
     /**
-     * Generate embeddings for a batch of texts.
+     * Generate embeddings for a batch of texts with comprehensive error handling.
      */
     public List<float[]> generateEmbeddings(List<String> texts) {
         String url = baseUrl + "/embeddings";
         
-        log.debug("[NvidiaEmbeddingClient] Calling NVIDIA API - url: {}, model: {}, batchSize: {}", 
-                 url, model, texts.size());
+        log.info("[NvidiaEmbeddingClient] Calling NVIDIA API - url: {}, model: {}, batchSize: {}, apiKeyLength: {}", 
+                 url, model, texts.size(), apiKey != null ? apiKey.length() : 0);
         
-        // Build request
-        NvidiaEmbeddingRequest request = new NvidiaEmbeddingRequest();
-        request.setInput(texts);
-        request.setModel(model);
-        request.setInputType("passage");
-        request.setEncodingFormat("float");
-        
-        // Set headers
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(apiKey);
-        
-        HttpEntity<NvidiaEmbeddingRequest> entity = new HttpEntity<>(request, headers);
-        
-        // Call API
-        NvidiaEmbeddingResponse response = restTemplate.postForObject(url, entity, NvidiaEmbeddingResponse.class);
-        
-        if (response == null || response.getData() == null) {
-            throw new RuntimeException("NVIDIA API returned null response");
+        try {
+            // Build request
+            NvidiaEmbeddingRequest request = new NvidiaEmbeddingRequest();
+            request.setInput(texts);
+            request.setModel(model);
+            request.setInputType("query");
+            request.setEncodingFormat("float");
+            request.setTruncate("NONE");
+            
+            log.info("[NvidiaEmbeddingClient] Request details - input: {}, model: {}, inputType: {}, encodingFormat: {}, truncate: {}", 
+                    texts.size(), request.getModel(), request.getInputType(), request.getEncodingFormat(), request.getTruncate());
+            
+            // Set headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+            
+            log.debug("[NvidiaEmbeddingClient] Headers set - ContentType: {}, Authorization: Bearer ***", 
+                     headers.getContentType());
+            
+            HttpEntity<NvidiaEmbeddingRequest> entity = new HttpEntity<>(request, headers);
+            
+            // Call API
+            log.info("[NvidiaEmbeddingClient] Making POST request to NVIDIA API...");
+            NvidiaEmbeddingResponse response = restTemplate.postForObject(url, entity, NvidiaEmbeddingResponse.class);
+            
+            // Validate response
+            if (response == null) {
+                log.error("[NvidiaEmbeddingClient] NVIDIA API returned null response");
+                throw new RuntimeException("NVIDIA embedding API returned null response");
+            }
+            
+            if (response.getData() == null || response.getData().isEmpty()) {
+                log.error("[NvidiaEmbeddingClient] NVIDIA API returned empty data - response: {}", response);
+                throw new RuntimeException("NVIDIA embedding API returned empty data");
+            }
+            
+            List<float[]> embeddings = response.getData().stream()
+                    .map(NvidiaEmbeddingData::getEmbedding)
+                    .toList();
+            
+            // Validate embedding count matches input count
+            if (embeddings.size() != texts.size()) {
+                log.error("[NvidiaEmbeddingClient] Embedding count mismatch - expected: {}, received: {}", 
+                         texts.size(), embeddings.size());
+                throw new RuntimeException(String.format("Embedding count mismatch: expected %d, got %d", 
+                                                        texts.size(), embeddings.size()));
+            }
+            
+            log.info("[NvidiaEmbeddingClient] NVIDIA API call successful - embeddingsCount: {}, dimensions: {}", 
+                     embeddings.size(), embeddings.get(0).length);
+            
+            return embeddings;
+            
+        } catch (org.springframework.web.client.RestClientException e) {
+            log.error("[NvidiaEmbeddingClient] REST client error calling NVIDIA API - url: {}, errorType: {}, message: {}", 
+                     url, e.getClass().getSimpleName(), e.getMessage(), e);
+            throw new RuntimeException("Failed to call NVIDIA embedding API: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("[NvidiaEmbeddingClient] Unexpected error calling NVIDIA API - url: {}, errorType: {}, message: {}", 
+                     url, e.getClass().getSimpleName(), e.getMessage(), e);
+            throw new RuntimeException("Unexpected error calling NVIDIA embedding API: " + e.getMessage(), e);
         }
-        
-        log.debug("[NvidiaEmbeddingClient] NVIDIA API call successful - embeddingsCount: {}", 
-                 response.getData().size());
-        
-        // Extract embeddings
-        return response.getData().stream()
-                .map(NvidiaEmbeddingData::getEmbedding)
-                .toList();
     }
     
-    @Data
     static class NvidiaEmbeddingRequest {
         private List<String> input;
         private String model;
@@ -80,6 +114,18 @@ public class NvidiaEmbeddingClient {
         private String inputType;
         @JsonProperty("encoding_format")
         private String encodingFormat;
+        private String truncate;
+        
+        public List<String> getInput() { return input; }
+        public void setInput(List<String> input) { this.input = input; }
+        public String getModel() { return model; }
+        public void setModel(String model) { this.model = model; }
+        public String getInputType() { return inputType; }
+        public void setInputType(String inputType) { this.inputType = inputType; }
+        public String getEncodingFormat() { return encodingFormat; }
+        public void setEncodingFormat(String encodingFormat) { this.encodingFormat = encodingFormat; }
+        public String getTruncate() { return truncate; }
+        public void setTruncate(String truncate) { this.truncate = truncate; }
     }
     
     @Data

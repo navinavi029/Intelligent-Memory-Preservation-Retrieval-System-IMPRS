@@ -40,8 +40,7 @@ public class DocumentChunk {
     @Column(name = "token_count")
     private Integer tokenCount;
     
-    @Column(name = "embedding", columnDefinition = "vector(2048)")
-    @org.hibernate.annotations.Type(com.example.demo.config.VectorType.class)
+    @Column(name = "embedding", columnDefinition = "vector(2000)")
     private float[] embedding;
     
     @Column(name = "created_at", nullable = false)

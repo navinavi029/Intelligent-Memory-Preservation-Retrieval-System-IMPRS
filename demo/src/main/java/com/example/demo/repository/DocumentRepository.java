@@ -17,6 +17,13 @@ import java.util.List;
 public interface DocumentRepository extends JpaRepository<Document, Long> {
     
     /**
+     * Find all documents ordered by upload timestamp descending.
+     * 
+     * @return List of all documents, newest first
+     */
+    List<Document> findAllByOrderByUploadTimestampDesc();
+    
+    /**
      * Find all documents with a specific processing status.
      * 
      * @param status The processing status to filter by

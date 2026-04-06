@@ -116,6 +116,65 @@ public class DocumentChunkerImpl implements DocumentChunker {
         return chunks;
     }
     
+    @Override
+    public List<String> chunkText(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            log.error("[DocumentChunker] Cannot chunk null or empty text - component: DocumentChunker, timestamp: {}", 
+                     LocalDateTime.now());
+            throw new IllegalArgumentException("Text cannot be null or empty");
+        }
+        
+        log.info("[DocumentChunker] Starting text chunking - textLength: {} chars, timestamp: {}", 
+                text.length(), LocalDateTime.now());
+        
+        int chunkSize = appConfig.getChunking().getChunkSize();
+        int overlap = appConfig.getChunking().getOverlap();
+        
+        log.debug("[DocumentChunker] Chunking configuration - chunkSize: {}, overlap: {}", 
+                 chunkSize, overlap);
+        
+        // Tokenize text using whitespace
+        String[] tokens = tokenize(text);
+        log.debug("[DocumentChunker] Tokenized text - tokenCount: {}", tokens.length);
+        
+        List<String> chunks = new ArrayList<>();
+        int currentPosition = 0;
+        
+        while (currentPosition < tokens.length) {
+            // Determine end position for this chunk
+            int endPosition = Math.min(currentPosition + chunkSize, tokens.length);
+            
+            // Extract chunk tokens
+            String[] chunkTokens = new String[endPosition - currentPosition];
+            System.arraycopy(tokens, currentPosition, chunkTokens, 0, chunkTokens.length);
+            
+            // Reconstruct text from tokens
+            String chunkText = String.join(" ", chunkTokens);
+            
+            // Adjust chunk boundary to preserve sentence endings
+            if (endPosition < tokens.length) {
+                chunkText = adjustToSentenceBoundary(chunkText, tokens, currentPosition, endPosition);
+            }
+            
+            chunks.add(chunkText);
+            log.debug("[DocumentChunker] Created text chunk - chunkNumber: {}, contentLength: {} chars", 
+                     chunks.size(), chunkText.length());
+            
+            // Move to next chunk position with overlap
+            currentPosition += (chunkSize - overlap);
+            
+            // Prevent infinite loop if overlap >= chunkSize
+            if (currentPosition <= currentPosition - (chunkSize - overlap)) {
+                currentPosition = endPosition;
+            }
+        }
+        
+        log.info("[DocumentChunker] Text chunking completed - totalChunks: {}, timestamp: {}", 
+                chunks.size(), LocalDateTime.now());
+        
+        return chunks;
+    }
+    
     /**
      * Tokenize text using whitespace splitting.
      * Simple tokenization approach suitable for chunk size estimation.

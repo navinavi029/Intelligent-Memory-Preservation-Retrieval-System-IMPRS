@@ -75,12 +75,46 @@ public class EmbeddingServiceImpl implements EmbeddingService {
                 throw new RuntimeException("Empty embedding response for query");
             }
             
-            return embeddings.get(0);
+            float[] fullEmbedding = embeddings.get(0);
+            
+            // Truncate to 2000 dimensions to match pgvector index limit
+            if (fullEmbedding.length > 2000) {
+                log.debug("[EmbeddingService] Truncating embedding from {} to 2000 dimensions", fullEmbedding.length);
+                float[] truncated = new float[2000];
+                System.arraycopy(fullEmbedding, 0, truncated, 0, 2000);
+                return truncated;
+            }
+            
+            return fullEmbedding;
         }, "query embedding");
         
         log.debug("[EmbeddingService] Query embedding generated - dimensions: {}, timestamp: {}", 
                  embedding.length, LocalDateTime.now());
         return embedding;
+    }
+    
+    @Override
+    public List<float[]> generateTextEmbeddings(List<String> textChunks) {
+        log.info("[EmbeddingService] Starting text embedding generation - chunkCount: {}, timestamp: {}", 
+                textChunks.size(), LocalDateTime.now());
+        
+        return executeWithRetry(() -> {
+            log.debug("[EmbeddingService] Calling NVIDIA API - batchSize: {}, totalChars: {}", 
+                     textChunks.size(), textChunks.stream().mapToInt(String::length).sum());
+            
+            List<float[]> embeddings = nvidiaClient.generateEmbeddings(textChunks);
+            
+            if (embeddings.size() != textChunks.size()) {
+                log.error("[EmbeddingService] Embedding count mismatch - expected: {}, received: {}, timestamp: {}", 
+                         textChunks.size(), embeddings.size(), LocalDateTime.now());
+                throw new RuntimeException(String.format("Embedding count mismatch: expected %d, got %d", 
+                                                       textChunks.size(), embeddings.size()));
+            }
+            
+            log.info("[EmbeddingService] Text embedding generation completed - chunkCount: {}, timestamp: {}", 
+                    embeddings.size(), LocalDateTime.now());
+            return embeddings;
+        }, "text embeddings");
     }
     
     /**
@@ -113,6 +147,15 @@ public class EmbeddingServiceImpl implements EmbeddingService {
             // Assign embeddings to chunks
             for (int i = 0; i < batch.size(); i++) {
                 float[] embedding = embeddings.get(i);
+                
+                // Truncate to 2000 dimensions to match pgvector index limit
+                if (embedding.length > 2000) {
+                    log.trace("[EmbeddingService] Truncating embedding from {} to 2000 dimensions", embedding.length);
+                    float[] truncated = new float[2000];
+                    System.arraycopy(embedding, 0, truncated, 0, 2000);
+                    embedding = truncated;
+                }
+                
                 batch.get(i).setEmbedding(embedding);
                 log.trace("[EmbeddingService] Embedding assigned - chunkIndex: {}, dimensions: {}", i, embedding.length);
             }

@@ -19,18 +19,21 @@ public class CacheConfig {
     
     /**
      * Cache manager with Caffeine implementation.
-     * Configures separate caches for embeddings and chat responses.
+     * Optimized caches for embeddings, chat responses, and retrieval results.
      */
     @Bean
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager(
                 "queryEmbeddings", 
-                "chatResponses"
+                "chatResponses",
+                "retrievalResults",
+                "documentChunks"
         );
         
         cacheManager.setCaffeine(Caffeine.newBuilder()
-                .maximumSize(1000) // Max 1000 entries per cache
-                .expireAfterWrite(1, TimeUnit.HOURS) // Expire after 1 hour
+                .maximumSize(2000) // Increased cache size
+                .expireAfterWrite(2, TimeUnit.HOURS) // Longer expiration
+                .expireAfterAccess(30, TimeUnit.MINUTES) // Access-based expiration
                 .recordStats()); // Enable statistics for monitoring
         
         return cacheManager;

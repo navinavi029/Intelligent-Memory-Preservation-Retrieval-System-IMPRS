@@ -210,13 +210,37 @@ public class GlobalExceptionHandler {
         
         log.error("Unexpected error for request to {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         
+        // Check if it's a RuntimeException from our services
+        String userMessage = "An unexpected error occurred";
+        List<String> details = new ArrayList<>();
+        
+        if (ex instanceof RuntimeException) {
+            String message = ex.getMessage();
+            if (message != null) {
+                if (message.contains("NVIDIA") || message.contains("API")) {
+                    userMessage = "I'm having trouble connecting to my AI services right now. Please try again in a moment.";
+                    details.add("API service temporarily unavailable");
+                } else if (message.contains("database") || message.contains("SQL")) {
+                    userMessage = "I'm having trouble accessing your memories right now. Please try again in a moment.";
+                    details.add("Database service temporarily unavailable");
+                } else if (message.contains("embedding") || message.contains("vector")) {
+                    userMessage = "I'm having trouble processing your query right now. Please try again in a moment.";
+                    details.add("Embedding service temporarily unavailable");
+                } else {
+                    details.add(message);
+                }
+            }
+        } else {
+            details.add(ex.getMessage());
+        }
+        
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .error(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase())
-                .message("An unexpected error occurred")
+                .message(userMessage)
                 .path(request.getRequestURI())
-                .details(List.of(ex.getMessage()))
+                .details(details)
                 .build();
         
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);

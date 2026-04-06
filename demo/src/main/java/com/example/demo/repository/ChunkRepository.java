@@ -26,6 +26,14 @@ public interface ChunkRepository extends JpaRepository<DocumentChunk, Long> {
     List<DocumentChunk> findByDocumentId(Long documentId);
     
     /**
+     * Delete all chunks belonging to a specific document.
+     * 
+     * @param documentId The document ID
+     * @return Number of deleted chunks
+     */
+    int deleteByDocumentId(Long documentId);
+    
+    /**
      * Perform vector similarity search using cosine distance.
      * Returns the top-k most similar chunks with similarity scores above the threshold.
      * Includes document metadata (filename) via JOIN.

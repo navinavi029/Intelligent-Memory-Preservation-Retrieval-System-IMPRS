@@ -4,6 +4,7 @@ import com.example.demo.dto.DocumentMetadataDto;
 import com.example.demo.dto.DocumentUploadResponse;
 import com.example.demo.dto.ErrorResponse;
 import com.example.demo.dto.ProcessingStatusDto;
+import com.example.demo.dto.TextDocumentRequest;
 import com.example.demo.model.Document;
 import com.example.demo.repository.ChunkRepository;
 import com.example.demo.repository.DocumentRepository;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -23,22 +25,19 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * REST controller for handling PDF document uploads and management operations.
- * Provides endpoints for uploading, listing, retrieving, and deleting documents.
- * 
- * Validates Requirements 1.1, 1.3, 1.4, 1.6, 8.1, 8.2, 8.3, 8.4, 8.5, 12.1, 12.3
+ * REST controller for handling memory sharing and management operations.
+ * Provides endpoints for sharing memory moments, listing, retrieving, and managing precious memories.
  */
 @RestController
 @RequestMapping("/api/documents")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Documents", description = "Endpoints for managing PDF document uploads, retrieval, and deletion")
+@Tag(name = "Memory Sharing", description = "Endpoints for sharing and managing precious memories and personal stories")
 public class UploadController {
     
     private final PdfProcessingService pdfProcessingService;
@@ -46,35 +45,34 @@ public class UploadController {
     private final ChunkRepository chunkRepository;
     
     /**
-     * Upload a PDF document for processing.
-     * Validates file size (max 10MB) and type (PDF only).
+     * Share a precious memory moment for safekeeping.
+     * Validates memory length (max 500 characters) to keep it focused and meaningful.
      * 
-     * @param file The PDF file to upload
-     * @return DocumentUploadResponse with document ID and status
+     * @param request The memory sharing request
+     * @return DocumentUploadResponse with memory ID and status
      */
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(
-        summary = "Upload a PDF document",
-        description = "Upload a PDF file for processing. The system extracts text content, " +
-                     "splits it into chunks, generates embeddings using Google Gemini API, " +
-                     "and stores them in the vector database for semantic search. " +
-                     "Maximum file size is 10MB. Only PDF files are accepted."
+        summary = "Share a precious memory",
+        description = "Share a meaningful memory moment for safekeeping and future recall. " +
+                     "I'll help you remember this special moment whenever you ask about it. " +
+                     "Maximum memory length is 500 characters to keep it focused."
     )
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "201",
-            description = "Document uploaded and processed successfully",
+            description = "Memory shared and safely stored",
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = DocumentUploadResponse.class),
                 examples = @ExampleObject(
-                    name = "Successful upload",
+                    name = "Successful memory sharing",
                     value = """
                         {
                           "documentId": 123,
-                          "filename": "research-paper.pdf",
+                          "filename": "Had a wonderful visit with my grandchildren today...",
                           "status": "COMPLETED",
-                          "message": "Document uploaded and processed successfully"
+                          "message": "Your precious memory has been safely stored and is ready for you to explore anytime"
                         }
                         """
                 )
@@ -82,50 +80,20 @@ public class UploadController {
         ),
         @ApiResponse(
             responseCode = "400",
-            description = "Bad request - file is empty or invalid",
+            description = "Please share a memory with me - it can't be empty or too long",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = DocumentUploadResponse.class),
+                schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(
-                    name = "Empty file error",
+                    name = "Validation error",
                     value = """
                         {
-                          "filename": "empty.pdf",
-                          "message": "File cannot be empty"
-                        }
-                        """
-                )
-            )
-        ),
-        @ApiResponse(
-            responseCode = "413",
-            description = "Payload too large - file exceeds 10MB limit",
-            content = @Content(
-                mediaType = "application/json",
-                schema = @Schema(implementation = DocumentUploadResponse.class),
-                examples = @ExampleObject(
-                    name = "File too large error",
-                    value = """
-                        {
-                          "filename": "large-document.pdf",
-                          "message": "File size exceeds maximum allowed size of 10MB"
-                        }
-                        """
-                )
-            )
-        ),
-        @ApiResponse(
-            responseCode = "415",
-            description = "Unsupported media type - only PDF files are accepted",
-            content = @Content(
-                mediaType = "application/json",
-                schema = @Schema(implementation = DocumentUploadResponse.class),
-                examples = @ExampleObject(
-                    name = "Invalid file type error",
-                    value = """
-                        {
-                          "filename": "document.docx",
-                          "message": "Only PDF files are supported"
+                          "timestamp": "2024-01-15T10:30:00",
+                          "status": 400,
+                          "error": "Bad Request",
+                          "message": "Validation failed",
+                          "path": "/api/documents/submit",
+                          "details": ["Please share a memory with me"]
                         }
                         """
                 )
@@ -133,115 +101,101 @@ public class UploadController {
         ),
         @ApiResponse(
             responseCode = "500",
-            description = "Internal server error - failed to process document",
+            description = "Internal server error - failed to process entry",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = DocumentUploadResponse.class),
+                schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(
                     name = "Processing error",
                     value = """
                         {
-                          "filename": "corrupted.pdf",
-                          "message": "Failed to process document: Unable to extract text from PDF"
+                          "timestamp": "2024-01-15T10:30:00",
+                          "status": 500,
+                          "error": "Internal Server Error",
+                          "message": "Failed to process diary entry",
+                          "path": "/api/documents/submit"
                         }
                         """
                 )
             )
         )
     })
-    public ResponseEntity<DocumentUploadResponse> uploadDocument(
-            @Parameter(
-                description = "PDF file to upload (max 10MB)",
-                required = true,
-                content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE)
-            )
-            @RequestParam("file") MultipartFile file) {
-        
-        log.info("Received document upload request: {}", file.getOriginalFilename());
+    public ResponseEntity<DocumentUploadResponse> submitText(
+            @Valid @RequestBody 
+            @Parameter(description = "Memory sharing request with a meaningful moment")
+            TextDocumentRequest request) {
         
         try {
-            // Process the document (validation happens in service layer)
-            Document document = pdfProcessingService.processDocument(file);
+            log.info("Received memory sharing - content length: {} characters", 
+                    request.getMemory().length());
             
-            // Build response
+            Document document = pdfProcessingService.processTextDocument(request);
+            
             DocumentUploadResponse response = DocumentUploadResponse.builder()
                     .documentId(document.getId())
                     .filename(document.getFilename())
                     .status(document.getStatus())
-                    .message("Document uploaded and processed successfully")
+                    .message("Your precious memory has been safely stored and is ready for you to explore anytime")
                     .build();
             
-            log.info("Document uploaded successfully with ID: {}", document.getId());
+            log.info("Successfully stored precious memory - memoryId: {}, preview: '{}'", 
+                    document.getId(), document.getFilename());
+            
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
             
         } catch (IllegalArgumentException e) {
-            // Handle validation errors (file size, type, empty file)
-            log.warn("Document upload validation failed: {}", e.getMessage());
-            
-            DocumentUploadResponse errorResponse = DocumentUploadResponse.builder()
-                    .filename(file.getOriginalFilename())
-                    .message(e.getMessage())
-                    .build();
-            
-            // Return appropriate HTTP status based on error type
-            if (e.getMessage().contains("exceeds maximum")) {
-                return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(errorResponse);
-            } else if (e.getMessage().contains("Only PDF files")) {
-                return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(errorResponse);
-            } else {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
-            }
+            log.warn("Memory sharing failed due to validation error: {}", e.getMessage());
+            throw e; // Let GlobalExceptionHandler handle it
             
         } catch (Exception e) {
-            // Handle processing errors
-            log.error("Document upload failed: {}", e.getMessage(), e);
-            
-            DocumentUploadResponse errorResponse = DocumentUploadResponse.builder()
-                    .filename(file.getOriginalFilename())
-                    .message("Failed to process document: " + e.getMessage())
-                    .build();
-            
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            log.error("Failed to process memory sharing: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to process precious memory", e);
         }
     }
     
     /**
-     * List all uploaded documents with their metadata.
+     * List all shared memories with their details.
+     * Returns list of memories ordered by when they were shared (newest first).
      * 
-     * @return List of document metadata
+     * @return List of DocumentMetadataDto with memory information
      */
     @GetMapping
     @Operation(
-        summary = "List all uploaded documents",
-        description = "Retrieve a list of all uploaded documents with their metadata including " +
-                     "filename, file size, upload timestamp, processing status, and chunk count."
+        summary = "List all shared memories",
+        description = "See all the precious memories you've shared with me, including " +
+                     "when you shared them and how I'm doing with keeping them safe. " +
+                     "Your newest memories appear first."
     )
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200",
-            description = "Successfully retrieved document list",
+            description = "Successfully found all your shared memories",
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = DocumentMetadataDto.class),
                 examples = @ExampleObject(
-                    name = "Document list",
+                    name = "Your shared memories",
                     value = """
                         [
                           {
                             "id": 123,
-                            "filename": "research-paper.pdf",
+                            "filename": "family-photos.pdf",
+                            "originalFilename": "family-photos.pdf",
                             "fileSize": 2048576,
                             "uploadTimestamp": "2024-01-15T10:30:00",
                             "status": "COMPLETED",
-                            "chunkCount": 42
+                            "chunkCount": 25,
+                            "errorMessage": null
                           },
                           {
-                            "id": 124,
-                            "filename": "technical-manual.pdf",
-                            "fileSize": 5242880,
-                            "uploadTimestamp": "2024-01-15T11:45:00",
+                            "id": 122,
+                            "filename": "Had a wonderful visit with my grandchildren today...",
+                            "originalFilename": "Had a wonderful visit with my grandchildren today...",
+                            "fileSize": 156,
+                            "uploadTimestamp": "2024-01-15T09:15:00",
                             "status": "COMPLETED",
-                            "chunkCount": 87
+                            "chunkCount": 1,
+                            "errorMessage": null
                           }
                         ]
                         """
@@ -250,46 +204,51 @@ public class UploadController {
         )
     })
     public ResponseEntity<List<DocumentMetadataDto>> listDocuments() {
-        log.info("Received request to list all documents");
+        log.info("Received request to see all shared memories");
         
-        List<Document> documents = documentRepository.findAll();
+        List<Document> documents = documentRepository.findAllByOrderByUploadTimestampDesc();
         
-        List<DocumentMetadataDto> documentList = documents.stream()
+        List<DocumentMetadataDto> documentDtos = documents.stream()
                 .map(this::convertToMetadataDto)
                 .collect(Collectors.toList());
         
-        log.info("Returning {} documents", documentList.size());
-        return ResponseEntity.ok(documentList);
+        log.info("Successfully found {} precious memories", documentDtos.size());
+        
+        return ResponseEntity.ok(documentDtos);
     }
     
     /**
-     * Get metadata for a specific document.
+     * Get details of a specific document by ID.
+     * Returns complete document metadata including processing status and error messages.
      * 
-     * @param documentId The document ID
-     * @return Document metadata
+     * @param documentId The ID of the document to retrieve
+     * @return DocumentMetadataDto with document details
      */
     @GetMapping("/{documentId}")
     @Operation(
-        summary = "Get document metadata",
-        description = "Retrieve detailed metadata for a specific document by its ID."
+        summary = "Get document details",
+        description = "Retrieve detailed information about a specific document including " +
+                     "processing status, chunk count, and any error messages."
     )
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200",
-            description = "Successfully retrieved document metadata",
+            description = "Successfully retrieved document details",
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = DocumentMetadataDto.class),
                 examples = @ExampleObject(
-                    name = "Document metadata",
+                    name = "Document details response",
                     value = """
                         {
                           "id": 123,
                           "filename": "research-paper.pdf",
+                          "originalFilename": "research-paper.pdf",
                           "fileSize": 2048576,
                           "uploadTimestamp": "2024-01-15T10:30:00",
                           "status": "COMPLETED",
-                          "chunkCount": 42
+                          "chunkCount": 25,
+                          "errorMessage": null
                         }
                         """
                 )
@@ -302,7 +261,7 @@ public class UploadController {
                 mediaType = "application/json",
                 schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(
-                    name = "Not found error",
+                    name = "Document not found error",
                     value = """
                         {
                           "timestamp": "2024-01-15T10:30:00",
@@ -317,40 +276,45 @@ public class UploadController {
         )
     })
     public ResponseEntity<DocumentMetadataDto> getDocument(
-            @Parameter(description = "Unique identifier of the document", required = true, example = "123")
-            @PathVariable Long documentId) {
-        log.info("Received request to get document: {}", documentId);
+            @PathVariable 
+            @Parameter(description = "The unique identifier of the document", example = "123")
+            Long documentId) {
         
-        return documentRepository.findById(documentId)
-                .map(document -> {
-                    DocumentMetadataDto metadata = convertToMetadataDto(document);
-                    log.info("Returning metadata for document: {}", documentId);
-                    return ResponseEntity.ok(metadata);
-                })
-                .orElseGet(() -> {
-                    log.warn("Document not found: {}", documentId);
-                    return ResponseEntity.notFound().build();
+        log.info("Received request to get document with ID: {}", documentId);
+        
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> {
+                    log.warn("Document not found with ID: {}", documentId);
+                    return new RuntimeException("Document not found with ID: " + documentId);
                 });
+        
+        DocumentMetadataDto documentDto = convertToMetadataDto(document);
+        
+        log.info("Successfully retrieved document - ID: {}, filename: {}, status: {}", 
+                document.getId(), document.getFilename(), document.getStatus());
+        
+        return ResponseEntity.ok(documentDto);
     }
     
     /**
-     * Delete a document and all associated chunks and embeddings.
+     * Delete a document and all its associated chunks.
+     * Removes the document record and all related chunk data from the database.
      * 
-     * @param documentId The document ID to delete
-     * @return Empty response with appropriate status
+     * @param documentId The ID of the document to delete
+     * @return HTTP 204 No Content on successful deletion
      */
     @DeleteMapping("/{documentId}")
     @Transactional
     @Operation(
         summary = "Delete a document",
-        description = "Delete a document and all associated chunks and embeddings from the system. " +
-                     "This operation is permanent and cannot be undone."
+        description = "Delete a document and all its associated chunks from the system. " +
+                     "This operation is irreversible and will remove all processed data " +
+                     "related to the document."
     )
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "204",
-            description = "Document deleted successfully",
-            content = @Content()
+            description = "Document deleted successfully"
         ),
         @ApiResponse(
             responseCode = "404",
@@ -359,7 +323,7 @@ public class UploadController {
                 mediaType = "application/json",
                 schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(
-                    name = "Not found error",
+                    name = "Document not found error",
                     value = """
                         {
                           "timestamp": "2024-01-15T10:30:00",
@@ -374,38 +338,43 @@ public class UploadController {
         )
     })
     public ResponseEntity<Void> deleteDocument(
-            @Parameter(description = "Unique identifier of the document to delete", required = true, example = "123")
-            @PathVariable Long documentId) {
-        log.info("Received request to delete document: {}", documentId);
+            @PathVariable 
+            @Parameter(description = "The unique identifier of the document to delete", example = "123")
+            Long documentId) {
         
-        return documentRepository.findById(documentId)
-                .map(document -> {
-                    // Delete all chunks (embeddings are deleted via cascade)
-                    chunkRepository.deleteAll(document.getChunks());
-                    
-                    // Delete the document
-                    documentRepository.delete(document);
-                    
-                    log.info("Successfully deleted document: {}", documentId);
-                    return ResponseEntity.noContent().<Void>build();
-                })
-                .orElseGet(() -> {
-                    log.warn("Document not found for deletion: {}", documentId);
-                    return ResponseEntity.notFound().build();
+        log.info("Received request to delete document with ID: {}", documentId);
+        
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> {
+                    log.warn("Document not found for deletion with ID: {}", documentId);
+                    return new RuntimeException("Document not found with ID: " + documentId);
                 });
+        
+        // Delete all chunks first (cascade should handle this, but being explicit)
+        int deletedChunks = chunkRepository.deleteByDocumentId(documentId);
+        log.debug("Deleted {} chunks for document ID: {}", deletedChunks, documentId);
+        
+        // Delete the document
+        documentRepository.delete(document);
+        
+        log.info("Successfully deleted document - ID: {}, filename: {}, chunks deleted: {}", 
+                documentId, document.getFilename(), deletedChunks);
+        
+        return ResponseEntity.noContent().build();
     }
     
     /**
-     * Get processing status for a specific document.
+     * Get processing status of a specific document.
+     * Returns current processing status and any error messages.
      * 
-     * @param documentId The document ID
-     * @return Processing status information
+     * @param documentId The ID of the document to check
+     * @return ProcessingStatusDto with current status information
      */
     @GetMapping("/{documentId}/status")
     @Operation(
         summary = "Get document processing status",
-        description = "Retrieve the current processing status of a document including the number of " +
-                     "chunks processed and any error messages if processing failed."
+        description = "Check the current processing status of a document. Useful for monitoring " +
+                     "the progress of document processing and identifying any errors."
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -414,30 +383,19 @@ public class UploadController {
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = ProcessingStatusDto.class),
-                examples = {
-                    @ExampleObject(
-                        name = "Completed status",
-                        value = """
-                            {
-                              "documentId": 123,
-                              "status": "COMPLETED",
-                              "chunksProcessed": 42,
-                              "errorMessage": null
-                            }
-                            """
-                    ),
-                    @ExampleObject(
-                        name = "Failed status",
-                        value = """
-                            {
-                              "documentId": 124,
-                              "status": "FAILED",
-                              "chunksProcessed": 0,
-                              "errorMessage": "Failed to extract text from PDF: Corrupted file"
-                            }
-                            """
-                    )
-                }
+                examples = @ExampleObject(
+                    name = "Processing status response",
+                    value = """
+                        {
+                          "documentId": 123,
+                          "filename": "research-paper.pdf",
+                          "status": "COMPLETED",
+                          "chunkCount": 25,
+                          "errorMessage": null,
+                          "uploadTimestamp": "2024-01-15T10:30:00"
+                        }
+                        """
+                )
             )
         ),
         @ApiResponse(
@@ -447,7 +405,7 @@ public class UploadController {
                 mediaType = "application/json",
                 schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(
-                    name = "Not found error",
+                    name = "Document not found error",
                     value = """
                         {
                           "timestamp": "2024-01-15T10:30:00",
@@ -461,43 +419,50 @@ public class UploadController {
             )
         )
     })
-    public ResponseEntity<ProcessingStatusDto> getProcessingStatus(
-            @Parameter(description = "Unique identifier of the document", required = true, example = "123")
-            @PathVariable Long documentId) {
-        log.info("Received request to get processing status for document: {}", documentId);
+    public ResponseEntity<ProcessingStatusDto> getDocumentStatus(
+            @PathVariable 
+            @Parameter(description = "The unique identifier of the document", example = "123")
+            Long documentId) {
         
-        return documentRepository.findById(documentId)
-                .map(document -> {
-                    ProcessingStatusDto statusDto = ProcessingStatusDto.builder()
-                            .documentId(document.getId())
-                            .status(document.getStatus())
-                            .chunksProcessed(document.getChunkCount())
-                            .errorMessage(document.getErrorMessage())
-                            .build();
-                    
-                    log.info("Returning status for document {}: {}", documentId, document.getStatus());
-                    return ResponseEntity.ok(statusDto);
-                })
-                .orElseGet(() -> {
-                    log.warn("Document not found for status check: {}", documentId);
-                    return ResponseEntity.notFound().build();
+        log.info("Received request to get processing status for document ID: {}", documentId);
+        
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> {
+                    log.warn("Document not found for status check with ID: {}", documentId);
+                    return new RuntimeException("Document not found with ID: " + documentId);
                 });
+        
+        ProcessingStatusDto statusDto = ProcessingStatusDto.builder()
+                .documentId(document.getId())
+                .filename(document.getFilename())
+                .status(document.getStatus())
+                .chunkCount(document.getChunkCount())
+                .errorMessage(document.getErrorMessage())
+                .uploadTimestamp(document.getUploadTimestamp())
+                .build();
+        
+        log.info("Successfully retrieved processing status - ID: {}, filename: {}, status: {}", 
+                document.getId(), document.getFilename(), document.getStatus());
+        
+        return ResponseEntity.ok(statusDto);
     }
     
     /**
      * Convert Document entity to DocumentMetadataDto.
      * 
-     * @param document The document entity
-     * @return DocumentMetadataDto
+     * @param document The document entity to convert
+     * @return DocumentMetadataDto with document metadata
      */
     private DocumentMetadataDto convertToMetadataDto(Document document) {
         return DocumentMetadataDto.builder()
                 .id(document.getId())
                 .filename(document.getFilename())
+                .originalFilename(document.getOriginalFilename())
                 .fileSize(document.getFileSize())
                 .uploadTimestamp(document.getUploadTimestamp())
                 .status(document.getStatus())
                 .chunkCount(document.getChunkCount())
+                .errorMessage(document.getErrorMessage())
                 .build();
     }
 }

@@ -31,4 +31,13 @@ public interface DocumentChunker {
      * @throws IllegalArgumentException if text is null or empty
      */
     List<DocumentChunk> chunkDocument(String text, Document document);
+    
+    /**
+     * Split text into overlapping chunks as strings.
+     * 
+     * @param text The text to chunk
+     * @return List of text chunks
+     * @throws IllegalArgumentException if text is null or empty
+     */
+    List<String> chunkText(String text);
 }

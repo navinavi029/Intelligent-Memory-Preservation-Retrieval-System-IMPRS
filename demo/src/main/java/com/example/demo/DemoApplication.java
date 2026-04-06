@@ -8,9 +8,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 @OpenAPIDefinition(
 	info = @Info(
-		title = "PDF RAG Chatbot API",
+		title = "Intelligent Memory Preservation & Retrieval System (IMPRS) API",
 		version = "1.0.0",
-		description = "REST API for PDF document upload, processing, and conversational querying using RAG (Retrieval-Augmented Generation) with Google Gemini"
+		description = "Enterprise-grade AI-powered platform utilizing advanced RAG architecture, pgvector semantic search, NVIDIA NIM embeddings, and LLM-based retrieval to help Alzheimer's and dementia patients preserve, organize, and recall their personal memories and life experiences"
 	)
 )
 public class DemoApplication {

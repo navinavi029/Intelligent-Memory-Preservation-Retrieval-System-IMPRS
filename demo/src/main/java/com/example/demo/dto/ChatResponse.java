@@ -7,30 +7,30 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * Response DTO for chat queries containing the generated answer,
- * source references, and metadata about retrieved chunks.
+ * Response containing a caring answer about your memories,
+ * along with references to the specific memories that helped me respond.
  * 
  * Validates Requirements 6.7, 7.2
  */
 @Data
 @Builder
-@Schema(description = "Response containing the generated answer and source references")
+@Schema(description = "Response containing a caring answer about your memories and references to related stories")
 public class ChatResponse {
     
     @Schema(
-        description = "Generated answer based on retrieved document context",
-        example = "The document discusses three main topics: machine learning fundamentals, neural network architectures, and practical applications in computer vision."
+        description = "My caring response based on your shared memories",
+        example = "From what you've shared, that family gathering was such a special day! You mentioned how everyone came together to celebrate your anniversary, and there were photos of three generations around the dinner table."
     )
     private String answer;
     
     @Schema(
-        description = "List of source document chunks used to generate the answer",
+        description = "References to the specific memories that helped me answer your question",
         implementation = SourceReference.class
     )
     private List<SourceReference> sources;
     
     @Schema(
-        description = "Total number of document chunks retrieved for this query",
+        description = "Number of related memories I found to help answer your question",
         example = "5"
     )
     private int retrievedChunks;
