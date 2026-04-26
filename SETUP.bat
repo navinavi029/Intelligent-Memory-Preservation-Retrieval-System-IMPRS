@@ -87,6 +87,25 @@ call mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
 pause
 exit /b 0
 
+rem ============================================================
+rem  Helper: detect docker compose command (v2 vs v1)
+rem ============================================================
+:detect_compose
+set COMPOSE_CMD=
+docker compose version >nul 2>&1
+if %errorlevel% equ 0 (
+    set COMPOSE_CMD=docker compose
+    goto :eof
+)
+docker-compose --version >nul 2>&1
+if %errorlevel% equ 0 (
+    set COMPOSE_CMD=docker-compose
+    goto :eof
+)
+echo [ERROR] Neither "docker compose" nor "docker-compose" found
+goto :eof
+
+rem ============================================================
 :check_prerequisites
 set ERROR_PREREQ=0
 
@@ -96,16 +115,17 @@ if errorlevel 1 (
     set ERROR_PREREQ=1
     goto :prompt_install_docker
 )
+
 docker ps >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Docker is not running
-    set ERROR_PREREQ=1
-    goto :prompt_start_docker
+    echo [WARNING] Docker daemon is not running
+    call :prompt_start_docker
+    if !ERROR_PREREQ! equ 1 goto :eof
 )
 
 java -version >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Java is not installed
+    echo [ERROR] Java is not installed or not on PATH
     set ERROR_PREREQ=1
 )
 goto :eof
@@ -118,18 +138,24 @@ goto :eof
 
 :prompt_start_docker
 echo.
-set /p DOCKER_START="Start Docker Desktop? (y/n): "
+set /p DOCKER_START="Start Docker Desktop now? (y/n): "
 if /i "!DOCKER_START!"=="y" (
+    echo [INFO] Launching Docker Desktop...
     start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
-    echo Waiting 30s for Docker to start...
-    timeout /t 30 /nobreak >nul
+    echo [INFO] Waiting up to 60s for Docker to become ready...
+    set /a WAIT_COUNT=0
+    :wait_docker_loop
+    timeout /t 5 /nobreak >nul
+    set /a WAIT_COUNT+=5
     docker ps >nul 2>&1
-    if errorlevel 1 (
-        echo [ERROR] Docker failed to start
-        set ERROR_PREREQ=1
+    if %errorlevel% equ 0 (
+        echo [OK] Docker is ready
+        set ERROR_PREREQ=0
         goto :eof
     )
-    set ERROR_PREREQ=0
+    if !WAIT_COUNT! lss 60 goto :wait_docker_loop
+    echo [ERROR] Docker did not start within 60 seconds
+    set ERROR_PREREQ=1
 ) else (
     set ERROR_PREREQ=1
 )
@@ -152,7 +178,6 @@ if "%API_KEY%"=="" (
     set ERROR_API=0
     goto :eof
 )
-echo Setting API key...
 goto :write_api_config
 
 :write_api_config
@@ -194,25 +219,33 @@ goto :eof
 :start_database
 set ERROR_DB=0
 
-docker ps -a --filter "name=rag-postgres" --format "{{.Names}}" | findstr /C:"rag-postgres" >nul 2>&1
+call :detect_compose
+if "!COMPOSE_CMD!"=="" (
+    set ERROR_DB=1
+    goto :eof
+)
+
+rem Check if container already exists (inspect is reliable regardless of format)
+docker inspect rag-postgres >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [INFO] Container exists
-    docker ps --filter "name=rag-postgres" --format "{{.Names}}" | findstr /C:"rag-postgres" >nul 2>&1
-    if %errorlevel% equ 0 (
-        echo [OK] Container is running
+    echo [INFO] Container rag-postgres already exists
+    rem Check running state via inspect
+    for /f "delims=" %%S in ('docker inspect --format "{{.State.Running}}" rag-postgres 2^>nul') do set CONTAINER_RUNNING=%%S
+    if "!CONTAINER_RUNNING!"=="true" (
+        echo [OK] Container is already running
     ) else (
-        echo [INFO] Starting existing container...
+        echo [INFO] Container is stopped - starting it...
         docker start rag-postgres
         if %errorlevel% neq 0 (
-            echo [ERROR] Failed to start container
+            echo [ERROR] Failed to start existing container
             set ERROR_DB=1
             goto :eof
         )
         echo [OK] Container started
     )
 ) else (
-    echo [INFO] Creating new container...
-    docker-compose up -d
+    echo [INFO] Creating new container via %COMPOSE_CMD%...
+    %COMPOSE_CMD% up -d
     if %errorlevel% neq 0 (
         echo [ERROR] Failed to create container
         set ERROR_DB=1
@@ -221,28 +254,33 @@ if %errorlevel% equ 0 (
     echo [OK] Container created
 )
 
-echo [INFO] Waiting for database to initialize (15s)...
-timeout /t 15 /nobreak >nul
-
+echo [INFO] Waiting for database to be ready (up to 30s)...
+set /a DB_WAIT=0
+:wait_db_loop
+timeout /t 5 /nobreak >nul
+set /a DB_WAIT+=5
 docker exec rag-postgres pg_isready -U raguser -d ragdb >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [OK] Database is ready
-) else (
-    echo [WARNING] Database may still be initializing...
-)
+if %errorlevel% equ 0 goto :db_ready
+if !DB_WAIT! lss 30 goto :wait_db_loop
+echo [WARNING] Database health check timed out - continuing anyway...
+goto :check_schema
 
-docker exec rag-postgres psql -U raguser -d ragdb -c "\dt" | findstr "document_chunks" >nul 2>&1
+:db_ready
+echo [OK] Database is ready
+
+:check_schema
+docker exec rag-postgres psql -U raguser -d ragdb -c "\dt" 2>nul | findstr "document_chunks" >nul 2>&1
 if %errorlevel% neq 0 (
     echo [INFO] Initializing database schema...
     powershell -Command "Get-Content demo\src\main\resources\schema.sql | docker exec -i rag-postgres psql -U raguser -d ragdb" >nul 2>&1
     if %errorlevel% equ 0 (
         echo [OK] Schema initialized
     ) else (
-        echo [ERROR] Schema init failed
+        echo [ERROR] Schema initialization failed
         set ERROR_DB=1
     )
 ) else (
-    echo [OK] Schema exists
+    echo [OK] Schema already exists
 )
 goto :eof
 
@@ -251,13 +289,13 @@ set ERROR_BUILD=0
 
 cd demo
 if not exist "mvnw.cmd" (
-    echo [ERROR] Maven wrapper not found
+    echo [ERROR] Maven wrapper not found in demo\
     set ERROR_BUILD=1
     cd ..
     goto :eof
 )
 
-echo [INFO] Building... (this may take 2-3 minutes first time)
+echo [INFO] Building... (this may take 2-3 minutes on first run)
 call mvnw.cmd clean package -DskipTests
 if %errorlevel% neq 0 (
     echo [ERROR] Build failed
@@ -271,7 +309,6 @@ goto :eof
 
 :start_app
 set ERROR_START=0
-echo.
 echo [INFO] Starting Spring Boot application...
 echo [INFO] This takes ~15 seconds to initialize
 echo.

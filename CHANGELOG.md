@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **SETUP.bat**: Docker container not starting when it already exists in a stopped (`Exited`) state
+  - Replaced unreliable `docker ps | findstr` pipe detection with `docker inspect` for accurate container existence and running-state checks
+  - Added `docker compose` (v2) support with automatic fallback to `docker-compose` (v1) for compatibility with modern Docker Desktop installs
+  - Replaced fixed-duration `timeout` sleeps with polling loops — Docker Desktop startup waits up to 60s, database readiness waits up to 30s, both proceeding as soon as ready
+
 ### Planned
 - Multi-user support with authentication
 - Image and video memory support
