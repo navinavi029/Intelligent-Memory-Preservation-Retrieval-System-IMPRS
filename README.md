@@ -1,251 +1,550 @@
 # Intelligent Memory Preservation & Retrieval System (IMPRS)
 
-Enterprise-grade AI-powered platform utilizing advanced RAG architecture, pgvector semantic search, NVIDIA NIM embeddings, and LLM-based retrieval to help users preserve, organize, and recall their personal memories and life experiences.
+[![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.12-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+[![pgvector](https://img.shields.io/badge/pgvector-enabled-purple.svg)](https://github.com/pgvector/pgvector)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Features
+## Overview
 
-- **Memory Sharing**: Upload and store precious memories and personal stories
-- **Semantic Search**: Find memories using natural language queries with pgvector
-- **AI Chat**: Conversational interface to explore and recall memories
-- **Document Processing**: Automatic chunking and embedding of text content
-- **Real-time Status**: Track document processing status
-- **RESTful API**: Complete API with Swagger documentation
-- **Container Reuse**: Automatically reuses existing Docker containers to preserve data
-- **Auto Schema Init**: Database schema is automatically initialized on startup
+IMPRS is an enterprise-grade AI-powered memory preservation platform that leverages advanced RAG (Retrieval-Augmented Generation) architecture, pgvector semantic search, and NVIDIA NIM embeddings to help Alzheimer's and dementia patients preserve, organize, and recall their personal memories and life experiences.
 
-## Tech Stack
+### Key Features
 
-- **Backend**: Spring Boot 3.x, Java 17
-- **Database**: PostgreSQL 16 with pgvector extension (Docker)
-- **AI/ML**: NVIDIA NIM API
-  - Embedding: `nvidia/nv-embed-v1` (4096 dims, truncated to 2000)
-  - Chat: `nvidia/nemotron-3-super-120b-a12b`
-- **Vector Search**: pgvector with HNSW indexing
-- **API Documentation**: OpenAPI 3.0 / Swagger UI
-
-## Quick Start
-
-Run these commands in order:
-
-```bash
-1_CHECK_PREREQUISITES.bat    # Check system requirements
-2_CONFIGURE_API_KEY.bat      # Set up NVIDIA API key
-3_START_APPLICATION.bat      # Start database and application
-4_OPEN_SWAGGER_UI.bat        # Open API documentation
-5_OPTIMIZE_DATABASE.bat      # Optimize for faster queries
-```
-
-For detailed setup instructions, see [SETUP.md](SETUP.md)
-
-### Stopping
-
-```bash
-STOP_DOCKER_DB.bat
-```
-
-## API Endpoints
-
-### Upload Memory (Text)
-```
-POST /api/documents/text
-Content-Type: application/json
-
-{
-  "content": "Your memory text here"
-}
-```
-
-### Chat/Query
-```
-POST /api/chat
-Content-Type: application/json
-
-{
-  "query": "What do you remember about my grandchildren?"
-}
-```
-
-### List Documents
-```
-GET /api/documents
-```
-
-### Health Check
-```
-GET /api/health
-```
+- **🧠 Semantic Memory Search**: Vector-based similarity search using pgvector for accurate memory retrieval
+- **📄 Multi-Format Support**: Process PDFs and text documents with intelligent chunking
+- **💬 Conversational AI**: Natural language chat interface powered by NVIDIA LLM models
+- **🔒 Enterprise Security**: Spring Security integration with input sanitization and validation
+- **⚡ High Performance**: Optimized with caching, connection pooling, and async processing
+- **🛡️ Resilience**: Circuit breakers, retry logic, and rate limiting via Resilience4j
+- **📊 Observability**: Prometheus metrics and Spring Boot Actuator endpoints
+- **🎯 Production-Ready**: Comprehensive error handling and logging
 
 ## Architecture
 
+### Technology Stack
+
+- **Backend Framework**: Spring Boot 3.5.12
+- **Language**: Java 17
+- **Database**: PostgreSQL 16 with pgvector extension
+- **AI/ML**: 
+  - NVIDIA NIM API for embeddings (`nvidia/nv-embed-v1`)
+  - NVIDIA LLM for chat (`meta/llama-3.1-70b-instruct`)
+  - Spring AI integration
+- **Resilience**: Resilience4j (Circuit Breaker, Retry, Rate Limiter)
+- **Caching**: Caffeine Cache
+- **API Documentation**: SpringDoc OpenAPI (Swagger UI)
+- **Build Tool**: Maven
+
+### System Architecture
+
 ```
-User Request
-    ↓
-ChatController
-    ↓
-ChatService (orchestration)
-    ↓
-├─→ EmbeddingService → NvidiaEmbeddingClient (4096 dims → truncate to 2000)
-├─→ RetrievalService → ChunkRepository (pgvector similarity search)
-└─→ ResilientNvidiaChatClient (circuit breaker + retry)
-    ↓
-Response with sources
+┌─────────────────────────────────────────────────────────────┐
+│                     Client Application                       │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   REST API Layer                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │   Chat       │  │   Upload     │  │   Health     │     │
+│  │ Controller   │  │ Controller   │  │ Controller   │     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Service Layer                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │   Chat       │  │  Embedding   │  │  Retrieval   │     │
+│  │  Service     │  │   Service    │  │   Service    │     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+│  ┌──────────────┐  ┌──────────────┐                        │
+│  │   PDF        │  │    Text      │                        │
+│  │ Processing   │  │ Processing   │                        │
+│  └──────────────┘  └──────────────┘                        │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+        ┌────────────┴────────────┐
+        ▼                         ▼
+┌──────────────────┐    ┌──────────────────┐
+│  PostgreSQL +    │    │   NVIDIA NIM     │
+│    pgvector      │    │      API         │
+│                  │    │                  │
+│  - Documents     │    │  - Embeddings    │
+│  - Chunks        │    │  - Chat LLM      │
+│  - Vectors       │    │                  │
+└──────────────────┘    └──────────────────┘
+```
+
+### RAG Pipeline Flow
+
+1. **Document Ingestion**
+   - Upload PDF or text documents
+   - Extract and clean text content
+   - Split into semantic chunks (800 tokens with 100 token overlap)
+
+2. **Embedding Generation**
+   - Generate vector embeddings using NVIDIA NIM API
+   - Store embeddings in PostgreSQL with pgvector
+
+3. **Query Processing**
+   - User submits natural language query
+   - Generate query embedding
+   - Perform vector similarity search (cosine similarity)
+   - Retrieve top-k relevant chunks
+
+4. **Response Generation**
+   - Construct context window from retrieved chunks
+   - Send to NVIDIA LLM with system prompt
+   - Generate caring, contextual response
+   - Return answer with source citations
+
+## Getting Started
+
+### Prerequisites
+
+- Java 17 or higher
+- Maven 3.6+
+- Docker and Docker Compose
+- NVIDIA API Key ([Get one here](https://build.nvidia.com))
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd IMPRS
+```
+
+2. **Set up environment variables**
+```bash
+cp .env.example .env
+# Edit .env and add your NVIDIA API key
+```
+
+3. **Start PostgreSQL with pgvector**
+```bash
+docker-compose up -d
+```
+
+4. **Build the application**
+```bash
+cd demo
+./mvnw clean install
+```
+
+5. **Run the application**
+```bash
+./mvnw spring-boot:run
+```
+
+The application will start on `http://localhost:8080`
+
+### Quick Start with Windows
+
+For Windows users, convenience scripts are provided:
+
+```bash
+# Start the database
+SETUP.bat
+
+# Stop the database
+STOP_DOCKER_DB.bat
+```
+
+## API Documentation
+
+### Swagger UI
+
+Access the interactive API documentation at:
+```
+http://localhost:8080/swagger-ui/index.html
+```
+
+### Key Endpoints
+
+#### Share a Memory (Text)
+```http
+POST /api/documents
+Content-Type: application/json
+
+{
+  "memory": "Today I went to the beach with my family..."
+}
+```
+
+#### List All Documents
+```http
+GET /api/documents
+```
+
+#### Get Document Status
+```http
+GET /api/documents/{id}/status
+```
+
+#### Delete a Document
+```http
+DELETE /api/documents/{id}
+```
+
+#### Chat Query
+```http
+POST /api/chat/query
+Content-Type: application/json
+
+{
+  "query": "Tell me about my vacation memories"
+}
+```
+
+Response:
+```json
+{
+  "answer": "Based on your shared memories, you had a wonderful vacation...",
+  "sources": [
+    {
+      "documentId": 123,
+      "filename": "vacation-2024.pdf",
+      "chunkNumber": 5,
+      "similarityScore": 0.85
+    }
+  ],
+  "retrievedChunks": 2
+}
+```
+
+#### Health Check
+```http
+GET /api/health
 ```
 
 ## Configuration
 
-### NVIDIA Models
+### Application Properties
 
-**Embedding Model**: `nvidia/nv-embed-v1`
-- Outputs 4096-dimensional embeddings
-- Automatically truncated to 2000 dimensions (pgvector HNSW limit)
-- Supports `query` and `passage` input types
+Key configuration options in `application.properties`:
 
-**Chat Model**: `nvidia/nemotron-3-super-120b-a12b`
-
-To change models, edit `demo/src/main/resources/application.properties`:
 ```properties
+# NVIDIA API Configuration
+nvidia.api.key=${NVIDIA_API_KEY}
 nvidia.api.embedding-model=nvidia/nv-embed-v1
-nvidia.api.chat-model=nvidia/nemotron-3-super-120b-a12b
+nvidia.api.chat-model=meta/llama-3.1-70b-instruct
+
+# Database Configuration
+spring.datasource.url=jdbc:postgresql://localhost:5432/ragdb
+spring.datasource.username=raguser
+spring.datasource.password=ragpass
+
+# Chunking Configuration
+app.chunking.chunk-size=800
+app.chunking.overlap=100
+
+# Retrieval Configuration
+app.retrieval.top-k=8
+app.retrieval.similarity-threshold=0.25
+
+# Resilience Configuration
+resilience4j.circuitbreaker.instances.nvidia-api.failure-rate-threshold=50
+resilience4j.retry.instances.nvidia-api.max-attempts=2
+resilience4j.ratelimiter.instances.nvidia-api.limit-for-period=20
 ```
 
-### Vector Database
-- PostgreSQL 16 with pgvector extension
-- HNSW index for O(log n) similarity search
-- 2000-dimensional vectors (pgvector limit)
-- Cosine distance metric
+### Environment Profiles
 
-### Retrieval Settings
-```properties
-app.retrieval.top-k=5                    # Number of results
-app.retrieval.similarity-threshold=0.3   # Minimum similarity (0.0-1.0)
-app.retrieval.diversity-threshold=0.7    # Diversity filtering
-```
+- `dev`: Development profile with debug logging
+- `local`: Local development with relaxed security
+- `prod`: Production profile with optimized settings
 
-### Chunking Strategy
-```properties
-app.chunking.chunk-size=800    # Characters per chunk
-app.chunking.overlap=100       # Overlap between chunks
+Activate a profile:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 ## Database Schema
 
-### documents
-- `id` - Primary key
-- `filename` - Document name
-- `status` - Processing status (PENDING, PROCESSING, COMPLETED, FAILED)
-- `chunk_count` - Number of chunks
-- `upload_timestamp` - Upload time
-
-### document_chunks
-- `id` - Primary key
-- `document_id` - Foreign key to documents
-- `chunk_number` - Chunk sequence
-- `content` - Text content
-- `embedding` - Vector embedding (2000 dimensions)
-- HNSW index on `embedding` for fast similarity search
-
-## Project Structure
-
-```
-.
-├── demo/                          # Spring Boot application
-│   ├── src/main/java/            # Java source code
-│   │   └── com/example/demo/
-│   │       ├── config/           # Configuration classes
-│   │       ├── controller/       # REST controllers
-│   │       ├── dto/              # Data transfer objects
-│   │       ├── exception/        # Exception handlers
-│   │       ├── model/            # JPA entities
-│   │       ├── repository/       # Data repositories
-│   │       └── service/          # Business logic
-│   ├── src/main/resources/       # Configuration files
-│   └── pom.xml                   # Maven dependencies
-├── docker-compose.yml            # Docker configuration
-├── *.bat                         # Setup and utility scripts
-├── *.ps1                         # PowerShell test scripts
-├── README.md                     # This file
-├── SETUP.md                      # Detailed setup guide
-└── TESTING.md                    # Testing guide
+### Documents Table
+```sql
+CREATE TABLE documents (
+    id                BIGSERIAL PRIMARY KEY,
+    filename          VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255) NOT NULL,
+    file_size         BIGINT,
+    upload_timestamp  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status            VARCHAR(20) NOT NULL,
+    chunk_count       INTEGER,
+    error_message     TEXT
+);
 ```
 
-## Technical Details
+### Document Chunks Table
+```sql
+-- Note: embeddings are truncated to 2000 dimensions from the full 4096
+-- to stay within pgvector's HNSW index limits
+CREATE TABLE document_chunks (
+    id            BIGSERIAL PRIMARY KEY,
+    document_id   BIGINT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    chunk_number  INTEGER NOT NULL,
+    content       TEXT NOT NULL,
+    token_count   INTEGER,
+    embedding     vector(2000),
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_document_chunk UNIQUE (document_id, chunk_number)
+);
 
-### Embedding Truncation
-The `nvidia/nv-embed-v1` model outputs 4096-dimensional embeddings, but pgvector's HNSW index has a 2000-dimension limit. The application automatically truncates embeddings to the first 2000 dimensions while maintaining good semantic quality.
+-- HNSW index for fast approximate nearest-neighbor search (cosine distance)
+CREATE INDEX idx_chunks_embedding ON document_chunks
+    USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 32, ef_construction = 128);
 
-### Container Management
-The startup script intelligently handles Docker containers:
-- If container exists and is running → uses it as-is
-- If container exists but is stopped → starts it
-- If container doesn't exist → creates a new one
-
-This preserves your data between restarts.
-
-### Schema Initialization
-On every startup, the script checks if the database schema exists and initializes it if needed. This ensures the database is always ready.
-
-## Development
-
-### Build
-```bash
-cd demo
-mvnw clean package
+-- Supporting indexes
+CREATE INDEX idx_documents_status   ON documents(status);
+CREATE INDEX idx_chunks_document_id ON document_chunks(document_id);
 ```
 
-### Run Tests
-```bash
-cd demo
-mvnw test
+## Performance Optimization
+
+### Vector Search Optimization
+
+The system uses IVFFlat indexing for fast approximate nearest neighbor search:
+
+```sql
+-- Create optimized index
+CREATE INDEX idx_chunks_embedding ON document_chunks 
+    USING ivfflat (embedding vector_cosine_ops) 
+    WITH (lists = 100);
+
+-- Analyze for query planning
+ANALYZE document_chunks;
+```
+
+### Caching Strategy
+
+- **Embedding Cache**: Caches generated embeddings (TTL: 1 hour)
+- **Retrieval Cache**: Caches search results (TTL: 30 minutes)
+- **Connection Pool**: HikariCP with 20 max connections
+
+### Async Processing
+
+Document processing runs asynchronously to avoid blocking API responses:
+
+```java
+@Async
+public CompletableFuture<ProcessingResult> processDocument(MultipartFile file)
+```
+
+## Security
+
+### Input Validation
+
+- Request size limits (10MB max)
+- Content length validation
+- Input sanitization to prevent prompt injection
+- SQL injection prevention via JPA
+
+### API Security
+
+- Spring Security integration
+- CORS configuration
+- Rate limiting (20 requests/second per client)
+- Circuit breaker protection
+
+### Data Protection
+
+- Secure credential management via environment variables
+- Database connection encryption
+- Audit logging for sensitive operations
+
+## Monitoring & Observability
+
+### Actuator Endpoints
+
+```
+GET /actuator/health       - Health status
+GET /actuator/metrics      - Application metrics
+GET /actuator/prometheus   - Prometheus metrics
+```
+
+### Metrics
+
+- Request latency (p50, p95, p99)
+- Error rates
+- Circuit breaker states
+- Cache hit rates
+- Database connection pool stats
+
+### Logging
+
+Structured logging with correlation IDs:
+
+```
+[ChatService] Query processing completed - retrievedChunks: 5, sources: 3, answerLength: 245
 ```
 
 ## Troubleshooting
 
-### Container Already Exists
-The startup script automatically handles this - it will reuse the existing container.
+### Common Issues
 
-### Database Schema Missing
-The startup script checks and initializes the schema automatically.
+**Database Connection Failed**
+```bash
+# Check if PostgreSQL is running
+docker ps | grep rag-postgres
 
-### Embedding API Errors
-- Verify your NVIDIA API key is valid
-- Check API rate limits at https://build.nvidia.com
-- Review application logs for detailed error messages
-
-### No Results from Queries
-- Ensure documents are uploaded successfully (status: COMPLETED)
-- Check that embeddings are being generated
-- Verify the similarity threshold (currently 0.3)
-
-### Port Already in Use
-```
-Error: Port 5432 is already allocated
-Solution: Stop other PostgreSQL instances or change port in docker-compose.yml
+# Restart the database
+docker-compose restart postgres
 ```
 
-## Performance
+**NVIDIA API Errors**
+```bash
+# Verify API key is set
+echo $NVIDIA_API_KEY
 
-### Retrieval Speed
-- HNSW index provides O(log n) search complexity
-- Typical query time: <100ms for 1000s of chunks
+# Check API status
+curl -H "Authorization: Bearer $NVIDIA_API_KEY" \
+     https://integrate.api.nvidia.com/v1/models
+```
 
-### Embedding Generation
-- Batch processing for efficiency
-- Retry logic with exponential backoff
-- Circuit breaker to prevent cascading failures
+**Out of Memory**
+```bash
+# Increase JVM heap size
+./mvnw spring-boot:run -Dspring-boot.run.jvmArguments="-Xmx2g"
+```
 
-## Security
+### Debug Mode
 
-- API keys must be configured via environment variables (never commit to git)
-- Use `.env.example` as a template for required environment variables
-- Input sanitization to prevent prompt injection
-- Rate limiting on NVIDIA API calls
-- Circuit breaker to prevent cascading failures
-- CORS configuration should be updated for production domains
+Enable debug logging:
+```properties
+logging.level.com.example.demo=DEBUG
+logging.level.org.springframework.ai=DEBUG
+```
+
+## Development
+
+### Project Structure
+
+```
+demo/
+├── src/main/java/com/example/demo/
+│   ├── config/          # Configuration classes
+│   ├── controller/      # REST controllers
+│   ├── dto/            # Data transfer objects
+│   ├── exception/      # Exception handlers
+│   ├── model/          # JPA entities
+│   ├── repository/     # Data access layer
+│   └── service/        # Business logic
+├── src/main/resources/
+│   ├── application.properties
+│   ├── application-dev.properties
+│   ├── application-prod.properties
+│   └── schema.sql
+└── pom.xml
+```
+
+### Building for Production
+
+```bash
+# Build JAR
+./mvnw clean package -DskipTests
+
+# Run production build
+java -jar target/intelligent-memory-preservation-system-1.0.0.jar \
+     --spring.profiles.active=prod
+```
+
+### Running Tests
+
+```bash
+./mvnw test
+```
+
+## Deployment
+
+### Docker Deployment
+
+```dockerfile
+FROM openjdk:17-jdk-slim
+COPY target/*.jar app.jar
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+```
+
+Build and run:
+```bash
+docker build -t imprs:latest .
+docker run -p 8080:8080 --env-file .env imprs:latest
+```
+
+### Environment Variables
+
+Required environment variables for production:
+
+```bash
+NVIDIA_API_KEY=your-api-key
+DATABASE_URL=jdbc:postgresql://db-host:5432/ragdb
+DB_USERNAME=raguser
+DB_PASSWORD=secure-password
+SPRING_PROFILES_ACTIVE=prod
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-MIT License
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- NVIDIA for providing the NIM API
+- pgvector team for the excellent PostgreSQL extension
+- Spring AI team for the AI integration framework
+- The open-source community
+
+## Documentation
+
+### Getting Started
+- **[Quick Start Guide](docs/QUICK_START.md)** - Get running in 5 minutes
+- **[Installation Guide](#installation)** - Detailed setup instructions
+- **[Configuration Guide](#configuration)** - Configure the application
+
+### API Documentation
+- **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation
+- **[Swagger UI](http://localhost:8080/swagger-ui/index.html)** - Interactive API explorer (when running)
+
+### Architecture & Development
+- **[Architecture Guide](docs/ARCHITECTURE.md)** - System design and components
+- **[Development Guide](docs/DEVELOPMENT.md)** - Developer setup and guidelines
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+
+### Additional Resources
+- **[FAQ](docs/FAQ.md)** - Frequently asked questions
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
+- **[Changelog](CHANGELOG.md)** - Version history and changes
 
 ## Support
 
-For issues and questions, please open an issue on GitHub.
+For issues and questions:
+- **Quick Help**: Check the [FAQ](docs/FAQ.md)
+- **Bug Reports**: Create an issue on GitHub
+- **Documentation**: Browse the [docs/](docs/) directory
+- **Community**: Join our discussions
+
+## Roadmap
+
+- [ ] Multi-user support with authentication
+- [ ] Image and video memory support
+- [ ] Mobile application
+- [ ] Voice interface
+- [ ] Advanced analytics dashboard
+- [ ] Export memories to PDF
+- [ ] Family sharing features
+
+---
+
+**Built with ❤️ for those who cherish memories**
